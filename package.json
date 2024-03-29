@@ -1,7 +1,14 @@
 {
   "name": "koishi-plugin-msbot",
   "description": "冒险岛查询机器人",
-  "version": "0.0.1",
+  "version": "1.0.0-alpha.1",
+  "contributors": [
+    "Leslee <wangzhengyr@gmail.com>"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wangzhengyr/koishi-plugin-msbot.git"
+  },
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -9,13 +16,12 @@
     "dist"
   ],
   "license": "MIT",
-  "scripts": {},
   "keywords": [
     "chatbot",
     "koishi",
-    "plugin"
+    "plugin",
+    "maplestory"
   ],
-  "devDependencies": {},
   "peerDependencies": {
     "koishi": "^4.17.3"
   }
