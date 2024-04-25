@@ -14,13 +14,14 @@ const logger = new Logger("core");
 
 export default function apply(ctx: Context, config: Config) {
 
-    ctx.command('学习 <q:string> <a:text>', '学习问题')
+    ctx.command('学习 <q:string> <a:text>', 'q是问题，a是答案，中间空格隔开')
     .action(async ({session}, q, a) => {
         logger.info("问题是：" +q,"答案是："+  a)
-        a = a.replace(/amp;/g, "");
+        q = q.toLowerCase()
+        a = a.replace(/amp;/g, "")
         a = a.replace(/file="(.+?)"/g, (match) => {
             const fileName = uuidv4() + '.png'
-            return `file="${fileName}"`; // 返回替换后的字符串
+            return `file="${fileName}"` // 返回替换后的字符串
         });
         logger.info(a)
         a = await ctx.assets.transform(a)
@@ -32,6 +33,26 @@ export default function apply(ctx: Context, config: Config) {
         }else {
             return "添加成功"
         }
+    })
+
+    ctx.command('关联 <q1:string> <q2:string>', 'q1是新增的问题，q2是关联的旧问题')
+    .action(async ({session}, q1, q2) => {
+        q1 = q1.toLowerCase()
+        q2 = q2.toLowerCase()
+        let questions = await getQuestionByquestion(q1, ctx)
+        let questions2 = await getQuestionByquestion(q2, ctx)
+        if(questions != null && questions.length != 0) {
+            return "新增问题已存在：" + q1
+        }
+        if(questions2 === null || questions2.length === 0) {
+            return "关联问题不存在：" + q2
+       }
+
+       // 取出q2中的answerid字段并赋值给q1
+       let question = buildQuestion(q1, questions2[0].answerid, 0, session.userId)
+       await addQuestion(question, ctx)
+       return "关联成功"
+
     })
    
     // ctx.middleware(async (session, next) => {
@@ -66,7 +87,7 @@ export default function apply(ctx: Context, config: Config) {
 
 
     ctx.middleware(async (session, next) => {
-        let content = session.content.replace(' ', '')
+        let content = session.content.replace(/\s/g, '').toLowerCase()
         let qa = await getQAndAByQestion(content, ctx)
         logger.info(qa)
     
