@@ -4,6 +4,7 @@ import { resolve, dirname } from 'path'
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import {} from '@koishijs/assets'
+import {} from '@koishijs/plugin-server'
 import Model from './model'
 import Core from './core'
 
@@ -18,12 +19,13 @@ export const Config: Schema<Config> = Schema.object({});
 const logger = new Logger("ms");
 
 
-export const inject = ['database', 'assets']
+export const inject = ['database', 'assets', 'server']
 
 export function apply(ctx: Context) {
   logger.info("ms插件以开启233");
   ctx.plugin(Model)
   ctx.plugin(Core)
+  
   
   // ctx.command('test')
   // .action(async ({session}) => {
