@@ -7,13 +7,24 @@ import {} from '@koishijs/assets'
 import {} from '@koishijs/plugin-server'
 import Model from './model'
 import Core from './core'
+// import {Config} from './core'
 
 
 export const name = "ms";
 
-export interface Config {}
+// export interface Config {}
 
-export const Config: Schema<Config> = Schema.object({});
+// export const Config: Schema<Config> = Schema.object({})
+
+export interface Config {
+  onebotMvp?: string[]
+}
+
+export const Config: Schema<Config> = Schema.intersect([
+  Schema.object({
+      onebotMvp: Schema.array(String).description('onebot平台mvp配置'),
+  }).description('mvp配置')
+])
 
 
 const logger = new Logger("ms");
@@ -21,10 +32,10 @@ const logger = new Logger("ms");
 
 export const inject = ['database', 'assets', 'server']
 
-export function apply(ctx: Context) {
+export function apply(ctx: Context, config: Config) {
   logger.info("ms插件以开启233");
   ctx.plugin(Model)
-  ctx.plugin(Core)
+  ctx.plugin(Core, config)
   
   
   // ctx.command('test')

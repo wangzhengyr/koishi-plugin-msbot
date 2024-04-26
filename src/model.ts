@@ -1,4 +1,3 @@
-import { WriteVResult } from 'fs';
 import { Context, Logger } from 'koishi'
 
 // 整体导出对象形式的插件

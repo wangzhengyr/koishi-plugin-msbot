@@ -1,11 +1,20 @@
-import { Context, Logger, h } from 'koishi'
+import { Context, Schema, Logger, h } from 'koishi'
 import { v4 as uuidv4 } from 'uuid';
 import { getQuestionByquestion,getQAndAByQestion, addQuestion, buildAnswer, buildQuestion, addQestuinAndAnswer, getQuestionsByAnswerId, getQuestionsByKey, getAnswerBykey, delQestionsByQuestion} from './model';
-
+import { Config } from './index'
 
 
 // 整体导出对象形式的插件
-export interface Config {}
+// export interface Config {
+//     onebotMvp?: string
+// }
+
+  
+// export const Config: Schema<Config> = Schema.intersect([
+//     Schema.object({
+//         onebotMvp: Schema.string().description('onebot平台mvp配置'),
+//     }).description('mvp配置')
+// ])
 
 export const name = 'Core'
 
@@ -19,7 +28,8 @@ export default function apply(ctx: Context, config: Config) {
 
     ctx.server.post('/mvp', async (c, next) => {
         let url =  c.request.body.url
-        ctx.broadcast(['onebot:585681900'], h.image(url))
+        let res = config.onebotMvp.map(item => 'onebot:' + item)
+        ctx.broadcast(res, h.image(url))
         
     })
 
