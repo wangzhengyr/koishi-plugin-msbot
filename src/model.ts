@@ -92,7 +92,7 @@ export async function getAnswerBykey(key: string, ctx: Context): Promise<Questio
     })
 
 
-    let res = answer.map(item => ({answer: item.answer.replace(/<img[^>]*>/g, ""), id: item.id}))
+    let res = answer.map(item => ({answer: item.answer.replace(/<[^>]*\/>/g, ""), id: item.id}))
     .filter(item => item.answer.includes(key))
     let answerIds = res.map(item => item.id)
     return ctx.database.get('questions', {
