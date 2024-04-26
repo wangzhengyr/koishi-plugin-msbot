@@ -87,8 +87,16 @@ export default function apply(ctx: Context, config: Config) {
     .action(async ({session}, key) => {
         let questions = await getQuestionsByKey(key, ctx)
         let questions2 = await getAnswerBykey(key, ctx)
+        // 需要过滤词条内容中包含图片数据的信息
+        
+
+
+
         let result = questions.map((item, index) => `${index + 1}、${item.question}`).join('\n')
         let result2 = questions2.map((item, index) => `${index + 1}、${item.question}`).join('\n')
+
+
+        
 
         return `词条名中含有【${key}】的词条为：\n${result}\n词条描述中含有【${key}】的词条为：\n${result2}`
     })

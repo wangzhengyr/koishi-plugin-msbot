@@ -31,6 +31,10 @@ export interface Question {
     createdid: string,
     parentid: number
 }
+
+export interface QuestionDto extends Question {
+    answer: string
+}
 export default function apply(ctx: Context, config: Config) {
     logger.info('model加载成功')
     ctx.model.extend('questions', {
@@ -86,10 +90,16 @@ export async function getAnswerBykey(key: string, ctx: Context): Promise<Questio
     let answer = await ctx.database.get('answers', { 
         answer: { $regex: regex },
     })
-    let answerIds = answer.map(item => item.id)
+
+
+    let res = answer.map(item => ({answer: item.answer.replace(/<img[^>]*>/g, ""), id: item.id}))
+    .filter(item => item.answer.includes(key))
+    let answerIds = res.map(item => item.id)
     return ctx.database.get('questions', {
         answerid: { $in: answerIds }
     })
+
+
 }
 
 
