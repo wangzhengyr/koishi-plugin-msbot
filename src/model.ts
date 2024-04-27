@@ -10,8 +10,17 @@ const logger = new Logger("model");
 declare module 'koishi' {
     interface Tables {
       questions: Question
-      answers: Answer
+      answers: Answer,
+      newData: newData
     }
+}
+
+export interface newData {
+    id?: number,
+    type: string,
+    title: string,
+    url: string,
+    content: string
 }
   
 
@@ -32,9 +41,6 @@ export interface Question {
     parentid: number
 }
 
-export interface QuestionDto extends Question {
-    answer: string
-}
 export default function apply(ctx: Context, config: Config) {
     logger.info('model加载成功')
     ctx.model.extend('questions', {
@@ -52,6 +58,18 @@ export default function apply(ctx: Context, config: Config) {
         // 各字段的类型声明
         id: 'unsigned',
         answer: 'text',
+    }, {
+        primary: 'id',
+        autoInc: true,
+    })
+
+
+    ctx.model.extend('newData', {
+        id: 'unsigned',
+        type: 'string',
+        title: 'string',
+        url: 'string',
+        content: 'text'
     }, {
         primary: 'id',
         autoInc: true,
@@ -173,4 +191,32 @@ export function buildAnswer(answer: string):Answer {
 
     };
     return  a
+}
+
+
+// newData相关sql
+export function createNewData(data: newData, ctx: Context) {
+    return ctx.database.create('newData', data)
+}
+
+export function getAllNewData(ctx: Context): Promise<newData[]> {
+    return ctx.database.get('newData',{})
+}
+
+export async function getLastNews(datas: newData[], ctx: Context) {
+
+    let newDatas = await getAllNewData(ctx)
+    
+
+    const oldTitles = newDatas.map(item => item.title)
+
+
+    let lastNews = datas.filter(item => !oldTitles.includes(item.title))
+
+
+    await ctx.database.remove('newData',{})
+    await ctx.database.upsert('newData', (row) => datas)
+
+    
+    return lastNews
 }

@@ -1,7 +1,10 @@
-import { Context, Schema, Logger, h } from 'koishi'
+import { Context, noop, Logger, h } from 'koishi'
 import { v4 as uuidv4 } from 'uuid';
-import { getQuestionByquestion,getQAndAByQestion, addQuestion, buildAnswer, buildQuestion, addQestuinAndAnswer, getQuestionsByAnswerId, getQuestionsByKey, getAnswerBykey, delQestionsByQuestion} from './model';
+import { getQuestionByquestion,getQAndAByQestion, addQuestion, buildAnswer, buildQuestion, addQestuinAndAnswer, getQuestionsByAnswerId, getQuestionsByKey, getAnswerBykey, delQestionsByQuestion, getLastNews} from './model';
 import { Config } from './index'
+import {} from 'koishi-plugin-adapter-onebot'
+import {} from 'koishi-plugin-puppeteer'
+import { newData } from './model'
 
 
 // 整体导出对象形式的插件
@@ -87,11 +90,7 @@ export default function apply(ctx: Context, config: Config) {
     .action(async ({session}, key) => {
         let questions = await getQuestionsByKey(key, ctx)
         let questions2 = await getAnswerBykey(key, ctx)
-        // 需要过滤词条内容中包含图片数据的信息
         
-
-
-
         let result = questions.map((item, index) => `${index + 1}、${item.question}`).join('\n')
         let result2 = questions2.map((item, index) => `${index + 1}、${item.question}`).join('\n')
 
@@ -180,15 +179,298 @@ export default function apply(ctx: Context, config: Config) {
         }
     })
 
+
+
+    ctx.command('lastnew', '获取官网最新公告')
+    .action(async ({session}) => {
+        const page = await ctx.puppeteer.page()
+        page.setViewport({
+            width: 1800,
+            height: 1532
+        })
+        const url = `https://maplestory.nexon.net/news`
+        await page.goto(url, {
+            waitUntil: 'networkidle0',
+            timeout: 30000,
+        })
+        let newsData = await page.evaluate(() => {
+
+            const list: newData[] = [];
+            document.querySelectorAll('li.news-item[data-equalizer=""]').forEach((element, index) => {
+                const type = element?.querySelector('div.label')?.innerHTML
+                const title = element?.querySelectorAll('a')[1]?.innerText
+                const url = element?.querySelectorAll('a')[1]?.href
+                const content = element.querySelector('p').innerText
+
+                list.push({
+                    id:index + 1,
+                    type,
+                    title,
+                    url,
+                    content,
+                })
+            })
+            return list
+        })
+
+        // logger.info(newsData)
+        // 去数据库比较是否有最新的新闻，并把这些入库
+        newsData = await getLastNews(newsData, ctx)
+
+
+        let message = new Array()
+        for (const newData of newsData) {
+            const newContentUrl = newData.url
+            await page.goto(newContentUrl, {
+                waitUntil: 'networkidle0',
+                timeout: 30000,
+            })
+            let content = await page.$('div.component.component-news-article')
+            await content.evaluate(() => {
+                document.querySelector('#onetrust-banner-sdk').remove()
+                document.querySelector('.global-header').remove()
+                document.querySelector('#gnt').remove()
+            })
+            let imageBuffer = await content.screenshot({})
+            logger.info(imageBuffer.byteLength)
+
+            message.push([
+                h.image(imageBuffer, 'image/png'),
+                h.text('官网有新消息：\n'),
+                h.text(`标题：${newData.title}\n`),
+                h.text(`原文：${newData.content}\n`),
+                h.text(`链接：${newContentUrl}`)
+            ])
+        }
+
+        message.forEach((msg) => {
+            session.send(msg)
+        })
+        return
+    })
+
     ctx.command('test')
     .action(async ({session}) => {
-        let qa = await getQAndAByQestion("你好", ctx)
-        logger.info(qa)
-    
-        if(!qa) {
-            return '没有找到词条内容'
-        }
-        return qa.answer
+        let htmlContent = `<!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>柱状图</title>
+            <link rel="stylesheet" href="styles.css" />
+          </head>
+        
+          <style>
+            .chart {
+              width: 400px;
+              height: 300px;
+              margin: 50px auto;
+              border: 1px solid #ccc;
+              display: flex;
+              justify-content: space-around;
+              align-items: flex-end;
+            }
+        
+            .bar {
+              width: 50px;
+              background-color: #007bff;
+              transition: height 0.5s ease;
+            }
+          </style>
+          <body>
+            <div class="chart" id="app">
+              <div class="bar" style="height: 100px"></div>
+              <div class="bar" style="height: 150px"></div>
+              <div class="bar" style="height: 80px"></div>
+              <div class="bar" style="height: 200px"></div>
+            </div>
+          </body>
+        </html>
+        
+        `
+        // const page = await ctx.puppeteer.browser.newPage()
+        // await page.setContent(htmlContent)
+        // const clip = await page.evaluate(() => {
+        //     const songList = document.getElementById('app')
+        //     const { left: x, top: y, width, height } = songList.getBoundingClientRect()
+        //     return { x, y, width, height }
+        // })
+        // const imageBuffer = await page.screenshot({clip})
+        // page.close()
+
+        
+        // return h.image(imageBuffer, 'image/png')
+
+        const page = await ctx.puppeteer.page()
+        await page.setViewport({
+            width: 1800,
+            height: 1532
+        })
+
+        const url = `https://mapleranks.com/u/leslee521`
+        await page.goto(url, {
+            waitUntil: 'load',
+            timeout: 30000,
+        })
+
+        // const s = await page.$('#content')
+        // page.on('load', async() => {
+        //     logger.info('load')
+
+        // })
+        const clip = await page.evaluate(() => {
+            const songList = document.getElementById('content')
+            eval('zmChs(14)')
+            
+            const { left: x, top: y, width, height } = songList.getBoundingClientRect()
+            return { x, y, width, height }
+        })
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 等待 2 秒钟
+
+
+        const imageBuffer = await page.screenshot({clip})
+        logger.info('233')
+        page.close()
+        return h.image(imageBuffer, 'image/png')
+
     })
+
+
+    ctx.command('test2')
+    .action(async ({session}) => {
+        const page = await ctx.puppeteer.page()
+        page.setViewport({
+            width: 1800,
+            height: 1532
+        })
+        // const url = `https://maplestory.nexon.net/news`
+        // await page.goto(url, {
+        //     waitUntil: 'networkidle0',
+        //     timeout: 30000,
+        // })
+
+        // const newsData = await page.evaluate(() => {
+        //     // // 获取新闻类型
+        //     // let type = document.querySelectorAll('li.news-item[data-equalizer=""]')[1].querySelector('div.label').innerHTML
+
+        //     // // 获取新闻标题
+        //     // const title = document.querySelectorAll('li.news-item[data-equalizer=""]')[1]?.querySelectorAll('a')[1]?.innerText
+            
+        //     // // 获取新闻详情url
+        //     // const url = document.querySelectorAll('li.news-item[data-equalizer=""]')[1]?.querySelectorAll('a')[1]?.href
+
+        //     const list: newData[] = [];
+        //     document.querySelectorAll('li.news-item[data-equalizer=""]').forEach(element => {
+        //         const type = element?.querySelector('div.label')?.innerHTML
+        //         const title = element?.querySelectorAll('a')[1]?.innerText
+        //         const url = element?.querySelectorAll('a')[1]?.href
+        //         const content = element.querySelector('p').innerText
+
+        //         list.push({
+        //             type,
+        //             title,
+        //             url,
+        //             content,
+        //         })
+        //     })
+        //     return list
+        // })
+
+        // logger.info(newsData)
+
+
+        // let message = new Array()
+        // for (const newData of newsData) {
+        //     const newContentUrl = newData.url
+        //     await page.goto(newContentUrl, {
+        //         waitUntil: 'networkidle0',
+        //         timeout: 30000,
+        //     })
+        //     let content = await page.$('div.component.component-news-article')
+        //     await content.evaluate(() => {
+        //         document.querySelector('#onetrust-banner-sdk').remove()
+        //         document.querySelector('.global-header').remove()
+        //         document.querySelector('#gnt').remove()
+        //     })
+        //     let imageBuffer = await content.screenshot({})
+        //     logger.info(imageBuffer.byteLength)
+
+        //     message.push([
+        //         h.image(imageBuffer, 'image/png'),
+        //         h.text('官网有新消息：\n'),
+        //         h.text(`标题：${newData.title}\n`),
+        //         h.text(`原文：${newData.content}\n`),
+        //         h.text(`链接：${newContentUrl}`)
+        //     ])
+        // }
+
+        // message.forEach((msg) => {
+        //     session.send(msg)
+        // })
+        // return
+
+        const newContent = `https://maplestory.nexon.net/news/91252/cash-shop-update-on-april-17`
+        await page.goto(newContent, {
+            waitUntil: 'networkidle0',
+            timeout: 30000,
+        })
+
+        let clip = await page.evaluate(() => {
+            // document.querySelector("div[class='component component-news-article']")?.style
+            // (document.querySelector("div[class='component component-news-article']") as HTMLElement).style.width = '400px'
+            const contentElement = document.querySelector("div[class='component component-news-article']")
+            
+            // (document.querySelector("div[class='component component-news-article']") as HTMLElement).style.height = height * 0.9.valueOf() + 'px'
+            // let h = (document.querySelectorAll('div.small-12.small-centered.columns')[1] as HTMLElement).offsetWidth;
+            // (document.querySelectorAll('div.small-12.small-centered.columns')[1] as HTMLElement).style.width = h * 1.4.valueOf() + 'px'
+            const { left: x, top: y, width, height } = contentElement.getBoundingClientRect();
+
+            return { x, y, width, height }
+        })
+
+        logger.info(clip)
+
+        let content = await page.$('div.component.component-news-article')
+        // let content = await page.$('div.small-12.small-centered.columns')
+       
+
+        await content.evaluate(() => {
+            document.querySelector('#onetrust-banner-sdk').remove()
+            document.querySelector('.global-header').remove()
+            document.querySelector('#gnt').remove();
+
+        })
+        // await new Promise(resolve => setTimeout(resolve, 2000)); // 等待 2 秒钟
+
+
+
+        let imageBuffer = await content.screenshot({})
+        logger.info(imageBuffer.byteLength)
+        page.close()
+
+        // 将图像缓冲区转换为 Base64 编码的字符串
+        // const base64Image = imageBuffer.toString('base64');
+
+        // // 创建数据 URI
+        // const dataURI = `data:image/png;base64,${base64Image}`;
+
+        session.send([
+            h.image(imageBuffer, 'image/png'),
+            h.text('官网有新消息:\n'),
+            h.text(`标题：\n`),
+            h.text(`原文：\n`),
+            h.text(`链接：${newContent}`)
+        ])
+        return 
+    })
+
+    
+
+    ctx.on('bot-status-updated', (bot) => {
+        if (bot.status === 1) {
+          // 这里的 userId 换成你的账号
+          bot.sendPrivateMessage('1019085793', '我上线了~')
+        }
+      })
 }
 

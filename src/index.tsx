@@ -30,7 +30,12 @@ export const Config: Schema<Config> = Schema.intersect([
 const logger = new Logger("ms");
 
 
-export const inject = ['database', 'assets', 'server']
+export const inject = ['database', 'assets', 'server', 'puppeteer']
+
+// export const inject = {
+//   required: ['database', 'assets', 'server'],
+//   optional: ['puppeteer']
+// }
 
 export function apply(ctx: Context, config: Config) {
   logger.info("ms插件以开启233");
