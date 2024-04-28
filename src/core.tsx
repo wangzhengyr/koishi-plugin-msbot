@@ -181,7 +181,7 @@ export default function apply(ctx: Context, config: Config) {
 
 
 
-    ctx.command('lastnew', '获取官网最新公告')
+    ctx.command('ms/lastnew', '获取官网最新公告')
     .action(async ({session}) => {
         const page = await ctx.puppeteer.page()
         page.setViewport({
@@ -189,49 +189,85 @@ export default function apply(ctx: Context, config: Config) {
             height: 1532
         })
         const url = `https://maplestory.nexon.net/news`
-        await page.goto(url, {
-            waitUntil: 'networkidle0',
-            timeout: 30000,
-        })
-        let newsData = await page.evaluate(() => {
-
-            const list: newData[] = [];
-            document.querySelectorAll('li.news-item[data-equalizer=""]').forEach((element, index) => {
-                const type = element?.querySelector('div.label')?.innerHTML
-                const title = element?.querySelectorAll('a')[1]?.innerText
-                const url = element?.querySelectorAll('a')[1]?.href
-                const content = element.querySelector('p').innerText
-
-                list.push({
-                    id:index + 1,
-                    type,
-                    title,
-                    url,
-                    content,
-                })
+        try {
+            await page.goto(url, {
+                waitUntil: 'networkidle0',
+                timeout: 30000,
             })
-            return list
-        })
+        } catch (error) {
+            page.close()
+            logger.debug(error)
+            return '新闻-打开主页异常。'
+        }
+        let newsData: newData[] = []
+        try {
+            newsData = await page.evaluate(() => {
 
+                const list: newData[] = [];
+                document.querySelectorAll('li.news-item[data-equalizer=""]').forEach((element, index) => {
+                    const type = element?.querySelector('div.label')?.innerHTML
+                    const title = element?.querySelectorAll('a')[1]?.innerText
+                    const url = element?.querySelectorAll('a')[1]?.href
+                    const content = element.querySelector('p').innerText
+    
+                    list.push({
+                        id:index + 1,
+                        type,
+                        title,
+                        url,
+                        content,
+                    })
+                })
+                return list
+            })
+        } catch (error) {
+            page.close()
+            logger.debug(error)
+            return '新闻-无法获取最新公告。'
+        }
+        
+
+        try {
         // logger.info(newsData)
         // 去数据库比较是否有最新的新闻，并把这些入库
         newsData = await getLastNews(newsData, ctx)
+        } catch (error) {
+            page.close()
+            logger.debug(error)
+            return '新闻-数据库操作异常。'
+        }
+
 
 
         let message = new Array()
         for (const newData of newsData) {
             const newContentUrl = newData.url
-            await page.goto(newContentUrl, {
-                waitUntil: 'networkidle0',
-                timeout: 30000,
-            })
-            let content = await page.$('div.component.component-news-article')
-            await content.evaluate(() => {
-                document.querySelector('#onetrust-banner-sdk').remove()
-                document.querySelector('.global-header').remove()
-                document.querySelector('#gnt').remove()
-            })
-            let imageBuffer = await content.screenshot({})
+            try {
+                await page.goto(newContentUrl, {
+                    waitUntil: 'networkidle0',
+                    timeout: 30000,
+                })
+            } catch (error) {
+                page.close()
+                logger.debug(error)
+                return '新闻-打开详情页异常。'
+            }
+            let imageBuffer
+            try {
+                let content = await page.$('div.component.component-news-article')
+                await content.evaluate(() => {
+                    document.querySelector('#onetrust-banner-sdk').remove()
+                    document.querySelector('.global-header').remove()
+                    document.querySelector('#gnt').remove()
+                })
+                imageBuffer = await content.screenshot({})
+            } catch (error) {
+                page.close()
+                logger.debug(error)
+                return '新闻-详情页截图异常。'
+            }
+
+
             logger.info(imageBuffer.byteLength)
 
             message.push([
@@ -243,8 +279,12 @@ export default function apply(ctx: Context, config: Config) {
             ])
         }
 
+        // 关闭浏览器
+        page.close()
+
         message.forEach((msg) => {
-            session.send(msg)
+            let res = config.onebotLastNew.map(item => 'onebot:' + item)
+            ctx.broadcast(res, msg)
         })
         return
     })

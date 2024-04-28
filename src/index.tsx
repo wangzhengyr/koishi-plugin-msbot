@@ -17,13 +17,15 @@ export const name = "ms";
 // export const Config: Schema<Config> = Schema.object({})
 
 export interface Config {
-  onebotMvp?: string[]
+  onebotMvp?: string[],
+  onebotLastNew?: string[],
 }
 
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
       onebotMvp: Schema.array(String).description('onebot平台mvp配置'),
-  }).description('mvp配置')
+      onebotLastNew: Schema.array(String).description('onebot平台官方公告配置'),
+  }).description('群配置')
 ])
 
 
