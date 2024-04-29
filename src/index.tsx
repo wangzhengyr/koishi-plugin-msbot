@@ -20,6 +20,7 @@ export interface Config {
   groupMvp?: string[],
   groupMvp2?: string[],
   goroupLastNew?: string[],
+  delAuthority: number
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -27,7 +28,11 @@ export const Config: Schema<Config> = Schema.intersect([
       groupMvp: Schema.array(String).description('全平台mvp配置'),
       groupMvp2: Schema.array(String).description('R2区全平台mvp配置'),
       goroupLastNew: Schema.array(String).description('全平台官方公告配置'),
-  }).description('群配置')
+  }).description('群配置'),
+  Schema.object({
+    delAuthority: Schema.number().max(5).min(0).default(2).description('可以删除全部问题的权限配置'),
+
+  }).description('词条相关配置')
 ])
 
 

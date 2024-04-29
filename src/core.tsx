@@ -41,9 +41,12 @@ export default function apply(ctx: Context, config: Config) {
 
     ctx.command('ms', "冒险岛相关指令")
 
-    ctx.command('ms/学习 <q:string> <a:text>', 'q是词条，a是词条内容，中间空格隔开')
+    ctx.command('ms/学习 <q:string> <a:text>', '学习词条')
+    .usage('学习词条，第一个参数是词条，第二个参数是词条内容，中间空格隔开')
+    .example('学习 蠢猫 蠢猫不在了')
     .action(async ({session}, q, a) => {
         if(q === undefined || a === undefined) {
+            session.execute('学习 -h')
             return 
         }
 
@@ -66,9 +69,12 @@ export default function apply(ctx: Context, config: Config) {
         }
     })
 
-    ctx.command('ms/关联 <q1:string> <q2:string>', 'q1是新增的词条，q2是关联的旧词条, 中间空格隔开')
+    ctx.command('ms/关联 <q1:string> <q2:string>', '关联词条')
+    .usage('关联词条，第一个参数是新增的词条，第二个参数是需要关联的词条，关联后词条内容都一样，中间空格隔开')
+    .example('关联 cm 蠢猫')
     .action(async ({session}, q1, q2) => {
         if(q1 === undefined || q2 === undefined) {
+            session.execute('关联 -h')
             return 
         }
         q1 = q1.toLowerCase()
@@ -89,8 +95,16 @@ export default function apply(ctx: Context, config: Config) {
 
     })
 
-    ctx.command('ms/查询 <key:string>', "关键字查询，key是要查询的关键字")
+    ctx.command('ms/查询 <key:string>', "关键字查询")
+    .usage("关键字查询，参数为需要查询的关键字，可根据关键字查询词条和词条内容")
+    .example("查询 蠢猫")
     .action(async ({session}, key) => {
+        if(key === undefined) {
+            session.execute('查询 -h')
+            return
+        }
+
+
         let questions = await getQuestionsByKey(key, ctx)
         let questions2 = await getAnswerBykey(key, ctx)
         
@@ -102,15 +116,22 @@ export default function apply(ctx: Context, config: Config) {
 
         return `词条名中含有【${key}】的词条为：\n${result}\n词条描述中含有【${key}】的词条为：\n${result2}`
     })
-    ctx.command('ms/删除 <q:string>', "删除词条，q是要删除的词条")
+    ctx.command('ms/删除 <q:string>', "删除词条")
+    .usage("删除词条，参数为需要删除的词条名称，只能删除自己创建的词条")
+    .example("删除 蠢猫")
     .userFields(['authority'])
     .action (async ({session}, q) => {
+
+        if(q === undefined) {
+            session.execute('删除 -h')
+            return
+        }
         const user = session.user;
         let question = await getQuestionByquestion(q, ctx)
         if(!question) {
             return "词条不存在"
         }
-        if(session.userId !== question.createdid && user.authority < 2) {
+        if(session.userId !== question.createdid && user.authority <= config.delAuthority) {
             return "只能删除自己创建的词条"
         }
 
@@ -319,8 +340,10 @@ export default function apply(ctx: Context, config: Config) {
         
         })
         
-
-        await createNewMessage(newMsgs, ctx)
+        // 判断有新的公告才替换数据库中的新公告
+        if(newMsgs.length > 0) {
+            await createNewMessage(newMsgs, ctx)
+        }
         
         return
     })
