@@ -1,4 +1,5 @@
 import { Context, Logger } from 'koishi'
+import  fs from 'fs' 
 
 // 整体导出对象形式的插件
 export interface Config {}
@@ -11,8 +12,14 @@ declare module 'koishi' {
     interface Tables {
       questions: Question
       answers: Answer,
-      newData: newData
+      newData: newData,
+      newMessage: newMessage
     }
+}
+
+export interface newMessage extends newData{
+    id?: number,
+    imgbase64: string,
 }
 
 export interface newData {
@@ -74,6 +81,19 @@ export default function apply(ctx: Context, config: Config) {
         primary: 'id',
         autoInc: true,
     })
+
+    ctx.model.extend('newMessage', {
+        id: 'unsigned',
+        type: 'string',
+        title: 'string',
+        url: 'string',
+        content: 'text',
+        imgbase64: 'text'
+        
+    }, {
+        primary: 'id',
+        autoInc: true,
+    })
     
 
 }
@@ -127,9 +147,31 @@ export async function delQestionsByQuestion(q: string, answerId: number, userId:
     let questions = await getQuestionsByAnswerId(answerId,ctx)
     // 如果没有其他问题指向这个答案，则还需要删除答案
     if(questions.length === 1) {
+        // 先删除图片
+        let answer = await getAnswerById(answerId, ctx)
+        
+
+        // 使用正则表达式匹配文件路径
+        const filePathRegex = /file:\/\/(.+?)(?=")/g;
+        const matches = answer.answer.match(filePathRegex)
+
+        for (const match of matches) {
+            const filePath = match[1];
+            // 删除文件
+            fs.unlink(filePath, (err) => {
+              if (err) {
+                logger.info(`删除文件 ${filePath} 失败:`, err)
+              } else {
+                logger.info(`文件 ${filePath} 删除成功`)
+              }
+            })
+          }
+
+
         ctx.database.remove('answers', { 
             id: answerId,
         })
+
     }
 
     return ctx.database.remove('questions', { 
@@ -202,6 +244,16 @@ export function createNewData(data: newData, ctx: Context) {
 export function getAllNewData(ctx: Context): Promise<newData[]> {
     return ctx.database.get('newData',{})
 }
+
+export function getAllNewMessage(ctx: Context): Promise<newMessage[]> {
+    return ctx.database.get('newMessage',{})
+}
+
+export async function createNewMessage(datas: newMessage[], ctx: Context) {
+    await ctx.database.remove('newMessage',{})
+    return ctx.database.upsert('newMessage', (row) => datas)
+}
+
 
 export async function getLastNews(datas: newData[], ctx: Context) {
 

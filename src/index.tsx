@@ -17,14 +17,16 @@ export const name = "ms";
 // export const Config: Schema<Config> = Schema.object({})
 
 export interface Config {
-  onebotMvp?: string[],
-  onebotLastNew?: string[],
+  groupMvp?: string[],
+  groupMvp2?: string[],
+  goroupLastNew?: string[],
 }
 
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
-      onebotMvp: Schema.array(String).description('onebot平台mvp配置'),
-      onebotLastNew: Schema.array(String).description('onebot平台官方公告配置'),
+      groupMvp: Schema.array(String).description('全平台mvp配置'),
+      groupMvp2: Schema.array(String).description('R2区全平台mvp配置'),
+      goroupLastNew: Schema.array(String).description('全平台官方公告配置'),
   }).description('群配置')
 ])
 
@@ -32,12 +34,12 @@ export const Config: Schema<Config> = Schema.intersect([
 const logger = new Logger("ms");
 
 
-export const inject = ['database', 'assets', 'server', 'puppeteer']
+// export const inject = ['database', 'assets', 'server', 'puppeteer']
 
-// export const inject = {
-//   required: ['database', 'assets', 'server'],
-//   optional: ['puppeteer']
-// }
+export const inject = {
+  required: ['database', 'server'],
+  optional: ['puppeteer', 'assets']
+}
 
 export function apply(ctx: Context, config: Config) {
   logger.info("ms插件以开启233");

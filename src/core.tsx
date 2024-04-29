@@ -1,10 +1,10 @@
 import { Context, noop, Logger, h } from 'koishi'
 import { v4 as uuidv4 } from 'uuid';
-import { getQuestionByquestion,getQAndAByQestion, addQuestion, buildAnswer, buildQuestion, addQestuinAndAnswer, getQuestionsByAnswerId, getQuestionsByKey, getAnswerBykey, delQestionsByQuestion, getLastNews} from './model';
+import { getQuestionByquestion,getQAndAByQestion, addQuestion, buildAnswer, buildQuestion, addQestuinAndAnswer, getQuestionsByAnswerId, getQuestionsByKey, getAnswerBykey, delQestionsByQuestion, getLastNews, getAllNewMessage, createNewMessage} from './model';
 import { Config } from './index'
 import {} from 'koishi-plugin-adapter-onebot'
 import {} from 'koishi-plugin-puppeteer'
-import { newData } from './model'
+import { newData, newMessage } from './model'
 
 
 // 整体导出对象形式的插件
@@ -31,9 +31,12 @@ export default function apply(ctx: Context, config: Config) {
 
     ctx.server.post('/mvp', async (c, next) => {
         let url =  c.request.body.url
-        let res = config.onebotMvp.map(item => 'onebot:' + item)
-        ctx.broadcast(res, h.image(url))
+        ctx.broadcast(config.groupMvp, h.image(url))
         
+    })
+    ctx.server.post('/mvp2', async (c, next) => {
+        let url =  c.request.body.url
+        ctx.broadcast(config.groupMvp2, h.image(url))
     })
 
     ctx.command('ms', "冒险岛相关指令")
@@ -240,6 +243,7 @@ export default function apply(ctx: Context, config: Config) {
 
 
         let message = new Array()
+        const newMsgs: newMessage[] = []
         for (const newData of newsData) {
             const newContentUrl = newData.url
             try {
@@ -270,23 +274,76 @@ export default function apply(ctx: Context, config: Config) {
 
             logger.info(imageBuffer.byteLength)
 
-            message.push([
-                h.image(imageBuffer, 'image/png'),
-                h.text('官网有新消息：\n'),
-                h.text(`标题：${newData.title}\n`),
-                h.text(`原文：${newData.content}\n`),
-                h.text(`链接：${newContentUrl}`)
-            ])
+            // message.push([
+            //     h.image(imageBuffer, 'image/png'),
+            //     h.text('官网有新消息：\n'),
+            //     h.text(`标题：${newData.title}\n`),
+            //     h.text(`原文：${newData.content}\n`),
+            //     h.text(`链接：${newContentUrl}`)
+            // ])
+
+            //将图像缓冲区转换为 Base64 编码的字符串
+            const base64Image = imageBuffer.toString('base64');
+
+            // 创建数据 URI
+            const dataURI = `data:image/png;base64,${base64Image}`;
+          
+            message.push(
+                <>
+                <img src={dataURI}/>
+                <text content={'官网有新消息：'} />
+                <text content={`标题：${newData.title}`} />
+                <text content={`原文：${newData.content}`} />
+                <text content={`链接：${newContentUrl}`} />
+                </>
+            )
+            newMsgs.push({
+                title: newData.title,
+                content: newData.content,
+                imgbase64: dataURI,
+                type: newData.type,
+                url: newContentUrl
+            })
+            
+
         }
 
         // 关闭浏览器
         page.close()
 
+
+
         message.forEach((msg) => {
-            let res = config.onebotLastNew.map(item => 'onebot:' + item)
-            ctx.broadcast(res, msg)
+            // let res = config.onebotLastNew.map(item => 'onebot:' + item)
+            ctx.broadcast(config.goroupLastNew, msg)
+        
         })
+        
+
+        await createNewMessage(newMsgs, ctx)
+        
         return
+    })
+    ctx.command('ms/公告', '获取官方最新公告')
+    .alias('官网', 'new')
+    .action(async ({session}) => {
+       let datas = await getAllNewMessage(ctx)
+    //    const message = datas.map(obj => {
+    //     return Object.values(obj);
+    //   })
+    datas.forEach(msg => {
+        session.send(
+            <>
+            <img src={msg.imgbase64}/>
+            <text content={'官网有新消息：'} />
+            <text content={`标题：${msg.title}`} />
+            <text content={`原文：${msg.content}`} />
+            <text content={`链接：${msg.url}`} />
+            </>
+        )
+      })
+      return
+
     })
 
     ctx.command('test')
