@@ -311,10 +311,10 @@ export default function apply(ctx: Context, config: Config) {
           
             message.push(
                 <>
-                <img src={dataURI}/>
-                <text content={'官网有新消息：'} />
-                <text content={`标题：${newData.title}`} />
-                <text content={`原文：${newData.content}`} />
+                <img src={dataURI}/><br/>
+                <text content={'官网有新消息：'} /><br/>
+                <text content={`标题：${newData.title}`} /><br/>
+                <text content={`原文：${newData.content}`} /><br/>
                 <text content={`链接：${newContentUrl}`} />
                 </>
             )
@@ -357,10 +357,10 @@ export default function apply(ctx: Context, config: Config) {
     datas.forEach(msg => {
         session.send(
             <>
-            <img src={msg.imgbase64}/>
-            <text content={'官网有新消息：'} />
-            <text content={`标题：${msg.title}`} />
-            <text content={`原文：${msg.content}`} />
+            <img src={msg.imgbase64}/> <br />
+            <text content={'官网有新消息：'} /> <br />
+            <text content={`标题：${msg.title}`} /> <br />
+            <text content={`原文：${msg.content}`} /> <br />
             <text content={`链接：${msg.url}`} />
             </>
         )
@@ -368,6 +368,19 @@ export default function apply(ctx: Context, config: Config) {
       return
 
     })
+
+
+    ctx.command('今日早报')
+    .action(async ({session}) => {
+        const api = "http://dwz.2xb.cn/zaob"
+
+        let res = await ctx.http.get(api)
+        logger.info(res)
+        return <img src={res.imageUrl}/>
+    })
+
+
+
 
     ctx.command('test')
     .action(async ({session}) => {
