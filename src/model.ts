@@ -16,10 +16,55 @@ declare module 'koishi' {
       newMessage: newMessage
     }
 }
+export interface characterData {
+    chart: number[],
+    labels: string[],
+    avatar: string,
+    name: string,
+    lv: string,
+    job: string,
+    server: string,
+    rankInKOnJob: string,
+    rankInK: string,
+    rankInROnJob: string,
+    rankInR: string,
+    legion_rank: string,
+    legion_lv: string,
+    legion_power: string,
+    legion_bi: string,
+    chengjiuzhi: string,
+    avg_exp_7: string,
+    avg_exp_14: string,
+    total_exp_7: string,
+    total_exp_14: string,
+    fujin_job_rank_name_1: string,
+    fujin_job_rank_name_2: string,
+    fujin_job_rank_name_3: string,
+    fujin_job_rank_name_4: string,
+    fujin_job_rank_name_5: string,
+    fujin_job_rank_lv_1: string,
+    fujin_job_rank_lv_2: string,
+    fujin_job_rank_lv_3: string,
+    fujin_job_rank_lv_4: string,
+    fujin_job_rank_lv_5: string,
+    fujin_rank_name_1: string,
+    fujin_rank_name_2: string,
+    fujin_rank_name_3: string,
+    fujin_rank_name_4: string,
+    fujin_rank_name_5: string,
+    fujin_rank_lv_1: string,
+    fujin_rank_lv_2: string,
+    fujin_rank_lv_3: string,
+    fujin_rank_lv_4: string,
+    fujin_rank_lv_5: string,
+
+}
+
 
 export interface newMessage extends newData{
     id?: number,
     imgbase64: string,
+    isOverHight: boolean
 }
 
 export interface newData {
@@ -88,7 +133,8 @@ export default function apply(ctx: Context, config: Config) {
         title: 'string',
         url: 'string',
         content: 'text',
-        imgbase64: 'text'
+        imgbase64: 'text',
+        isOverHight: 'boolean'
         
     }, {
         primary: 'id',

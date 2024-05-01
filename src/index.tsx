@@ -17,9 +17,9 @@ export const name = "ms";
 // export const Config: Schema<Config> = Schema.object({})
 
 export interface Config {
-  groupMvp?: string[],
-  groupMvp2?: string[],
-  goroupLastNew?: string[],
+  groupMvp: string[],
+  groupMvp2: string[],
+  goroupLastNew: string[],
   delAuthority: number
 }
 
@@ -43,7 +43,7 @@ const logger = new Logger("ms");
 
 export const inject = {
   required: ['database', 'server'],
-  optional: ['puppeteer', 'assets']
+  optional: ['puppeteer', 'assets', 'canvas']
 }
 
 export function apply(ctx: Context, config: Config) {
