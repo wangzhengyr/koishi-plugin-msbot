@@ -13,9 +13,16 @@ declare module 'koishi' {
       questions: Question
       answers: Answer,
       newData: newData,
-      newMessage: newMessage
+      newMessage: newMessage,
+      gmsInfo: gmsInfo
     }
 }
+
+export interface gmsInfo {
+    userId: string,
+    name: string
+}
+
 export interface characterData {
     chart: number[],
     labels: string[],
@@ -140,9 +147,20 @@ export default function apply(ctx: Context, config: Config) {
         primary: 'id',
         autoInc: true,
     })
+
+    ctx.model.extend('gmsInfo', {
+        id: 'unsigned',
+        userId: 'string',
+        name: 'string',
+    }, {
+        primary: 'id',
+        autoInc: true,
+    })
     
 
 }
+
+
 
 export async function getQuestionByquestion(question: string, ctx: Context): Promise<Question> {
     let questions = await ctx.database.get('questions', { 

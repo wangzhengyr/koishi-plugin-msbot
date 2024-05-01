@@ -4,7 +4,7 @@ import { getQuestionByquestion,getQAndAByQestion, addQuestion, buildAnswer, buil
 import { Config } from './index'
 import {} from 'koishi-plugin-adapter-onebot'
 import {} from 'koishi-plugin-puppeteer'
-import { newData, newMessage, characterData } from './model'
+import { newData, newMessage, characterData, gmsInfo } from './model'
 import { Page } from 'puppeteer-core'
 
 
@@ -413,10 +413,47 @@ export default function apply(ctx: Context, config: Config) {
 
     })
 
-    ctx.command('ms/联盟查询 <name:string>')
+    ctx.command('ms/联盟绑定 <name:string>', '角色名称与当前账号绑定')
+    .example('联盟绑定 leslee520')
+    .action(async ({session}, name) => {
+        if(!name) {
+            await session.send('请在下一条消息输入要绑定的角色名')
+            const cname = await session.prompt()
+            if (!cname) return <>
+                <at id={session.userId} /> 输入超时。
+            </>
+            name = cname
+        }
+
+        let msg = await bindGms(ctx, name, session.userId)
+
+        return msg
+
+
+
+    })
+
+
+
+    ctx.command('ms/联盟查询 <name:string>', '查询角色信息')
+    .example('联盟查询 leslee520')
     .action(async ({session}, name) => {
 
-        if(!name) return
+        if(!name) {
+            let info: gmsInfo[] = await ctx.database.get('gmsInfo', {
+                userId: session.userId,
+            })
+            if(info.length == 0) {
+                await session.send('当前未绑定角色，请在下一条消息输入要绑定的角色名')
+                const cname = await session.prompt()
+                if (!cname) return <>
+                    <at id={session.userId} /> 输入超时。
+                </>
+                name = cname
+               return bindGms(ctx, name, session.userId)
+            }
+            name = info[0].name
+        }
 
         const page = await ctx.puppeteer.page()
         // const browser = ctx.puppeteer.browser
@@ -1383,6 +1420,7 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
     ],
     },
     options: {
+    animation: false,    
     scales: {
         y: {
         ticks: {
@@ -1449,9 +1487,34 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
 
     `
 
-
     await page.setContent(htmlContent)
 
     let imageBuffer = await (await page.$('#app')).screenshot({})
+
     return imageBuffer
+
+}
+
+async function bindGms(ctx: Context, name: string, userId: string) {
+
+
+    const url = `https://api.maplestory.gg/v2/public/character/gms/${name}`
+
+    try {
+        await ctx.http.get(url)
+    } catch (error) {
+        return '角色不存在'
+    }
+
+    try {
+        await ctx.database.upsert('gmsInfo', [
+            {
+                userId: userId,
+                name: name,
+            }
+        ], 'userId')
+    } catch (error) {
+        return '绑定失败'
+    }
+    return '绑定成功'
 }
