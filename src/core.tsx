@@ -71,6 +71,7 @@ export default function apply(ctx: Context, config: Config) {
         if(q === undefined) {
             await session.send('请在下一条消息输入词条名称')
             q = await session.prompt()
+            logger.info(q)
             if (!q) return <>
                 <at id={session.userId} /> 输入超时。
             </>
@@ -78,6 +79,7 @@ export default function apply(ctx: Context, config: Config) {
             if(selectQ) return "词条已存在"
             await session.send('请在下一条消息输入词条内容')
             a = await session.prompt()
+            logger.info(a)
             if (!a) return <>
                 <at id={session.userId} /> 输入超时。
             </>
@@ -91,6 +93,7 @@ export default function apply(ctx: Context, config: Config) {
         if(a === undefined) {
             await session.send(`已输入词条【${q}】,请在下一条消息输入词条内容`)
             a = await session.prompt()
+            logger.info(a)
             if (!a) return <>
                 <at id={session.userId} /> 输入超时。
             </>
