@@ -400,8 +400,9 @@ export default function apply(ctx: Context, config: Config) {
                 }
                 
 
-                await saveImageToFile(imageBuffer, filepath);
-
+                await fs.promises.writeFile(filepath, Buffer.from(imageBuffer))
+                // await saveImageToFile(imageBuffer, filepath);
+                logger.info('保存完成：' + filepath)
 
                 newData.imgbase64 = "file://" + filepath
                 newData.isOverHight = data.isOverHight
