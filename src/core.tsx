@@ -393,7 +393,7 @@ export default function apply(ctx: Context, config: Config) {
                 // const dataURI = `data:image/png;base64,${base64Image}`
 
                 const filename = `${uuidv4()}.png`;
-                const filepath = resolve(process.cwd(), 'data', 'locales', 'save', filename);
+                const filepath = resolve(process.cwd(), 'data', 'locales', 'news', filename);
                 const dir = dirname(filepath);
                 if (!fs.existsSync(dir)) {
                     fs.mkdirSync(dir, { recursive: true });
@@ -403,7 +403,7 @@ export default function apply(ctx: Context, config: Config) {
                 await saveImageToFile(imageBuffer, filepath);
 
 
-                newData.imgbase64 = filepath
+                newData.imgbase64 = "file://" + filepath
                 newData.isOverHight = data.isOverHight
                 await ctx.database.set('newData', {
                     id: newDataId
