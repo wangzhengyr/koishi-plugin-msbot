@@ -1,12 +1,13 @@
 import { Context, noop, Logger, h, Session } from 'koishi'
 import { v4 as uuidv4 } from 'uuid';
-import { getQuestionByquestion,getQAndAByQestion, addQuestion, buildAnswer, buildQuestion, addQestuinAndAnswer, getQuestionsByAnswerId, getQuestionsByKey, getAnswerBykey, delQestionsByQuestion, getLastNews, getAllNewMessage, createNewMessage} from './model';
+import { getQuestionByquestion,getQAndAByQestion, addQuestion, buildAnswer, buildQuestion, addQestuinAndAnswer, getQuestionsByAnswerId, getQuestionsByKey, getAnswerBykey, delQestionsByQuestion, getLastNews, getAllNewMessage, addNews} from './model';
 import { Config } from './index'
 import {} from 'koishi-plugin-adapter-onebot'
 import {} from 'koishi-plugin-puppeteer'
 import { newData, newMessage, characterData, gmsInfo } from './model'
 import { Page } from 'puppeteer-core'
-
+import { resolve, dirname } from 'path'
+import fs from 'fs';
 
 
 
@@ -278,25 +279,42 @@ export default function apply(ctx: Context, config: Config) {
             logger.error('新闻-打开主页异常。')
             session.send('新闻-打开主页异常。')
         }
-        let newsData: newData[] = []
+        let newData: newData
+        let newDataId
         try {
-            newsData = await page.evaluate(() => {
+            newData = await page.evaluate(() => {
 
                 const list: newData[] = [];
-                document.querySelectorAll('li.news-item[data-equalizer=""]').forEach((element, index) => {
-                    const type = element?.querySelector('div.label')?.innerHTML
-                    const title = element?.querySelectorAll('a')[1]?.innerText
-                    const url = element?.querySelectorAll('a')[1]?.href
-                    const content = element?.querySelector('p')?.innerText
-                    list.push({
-                        id:index + 1,
-                        type,
-                        title,
-                        url,
-                        content
-                    })
-                })
-                return list
+                const element = document.querySelector('li.news-item[data-equalizer=""]')
+                const type = element?.querySelector('div.label')?.innerHTML
+                const title = element?.querySelectorAll('a')[1]?.innerText
+                let str = element?.querySelectorAll('a')[1]?.href
+                const url = str.substring(0,str.lastIndexOf('/'))
+                const content = element?.querySelector('p')?.innerText
+
+                return {
+                    type,
+                    title,
+                    url,
+                    content,
+                    isNew: true
+                }
+
+                // document.querySelectorAll('li.news-item[data-equalizer=""]').forEach((element, index) => {
+                //     const type = element?.querySelector('div.label')?.innerHTML
+                //     const title = element?.querySelectorAll('a')[1]?.innerText
+                //     let str = element?.querySelectorAll('a')[1]?.href
+                //     const url = str.substring(0,str.lastIndexOf('/'))
+                //     const content = element?.querySelector('p')?.innerText
+                //     // list.push({
+                //     //     id:index + 1,
+                //     //     type,
+                //     //     title,
+                //     //     url,
+                //     //     content
+                //     // })
+                // })
+                // return list
             })
         } catch (error) {
             page.close()
@@ -309,7 +327,8 @@ export default function apply(ctx: Context, config: Config) {
         try {
         // logger.info(newsData)
         // 去数据库比较是否有最新的新闻，并把这些入库
-        newsData = await getLastNews(newsData, ctx)
+        newDataId = await getLastNews(newData, ctx)
+        logger.info(newData)
         } catch (error) {
             page.close()
             logger.error(error)
@@ -318,11 +337,8 @@ export default function apply(ctx: Context, config: Config) {
             return
         }
 
-
-
-        let message = new Array()
-        const newMsgs: newMessage[] = []
-        for (const newData of newsData) {
+        if(newDataId) {
+            logger.info('检测到有新公告')
             const newContentUrl = newData.url
 
             try {
@@ -368,85 +384,132 @@ export default function apply(ctx: Context, config: Config) {
                 session.send('新闻-详情页截图异常。')
             }
 
+            try {
+                logger.info(imageBuffer.byteLength)
+                //将图像缓冲区转换为 Base64 编码的字符串
+                // const base64Image = imageBuffer.toString('base64')
+    
+                // // 创建数据 URI
+                // const dataURI = `data:image/png;base64,${base64Image}`
+
+                const filename = `${uuidv4()}.png`;
+                const filepath = resolve(process.cwd(), 'data', 'locales', 'save', filename);
+                const dir = dirname(filepath);
+                if (!fs.existsSync(dir)) {
+                    fs.mkdirSync(dir, { recursive: true });
+                }
+                
+
+                await saveImageToFile(imageBuffer, filepath);
 
 
-            logger.info(imageBuffer.byteLength)
+                newData.imgbase64 = filepath
+                newData.isOverHight = data.isOverHight
+                await ctx.database.set('newData', {
+                    id: newDataId
+                },newData)
+                let msg = <>
+                    <img src={filepath}/><br/>
+                    <text content={'官网有新消息：'} /><br/>
+                    <text content={`标题：${newData.title}`} /><br/>
+                    <text content={`原文：${newData.content}`} /><br/>
+                    <a href={newData.url} >链接：</a><br/>
+                    {data.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
+                    </>
+                await (ctx as any).broadcast([...config.goroupLastNew], msg)
 
-            // message.push([
-            //     h.image(imageBuffer, 'image/png'),
-            //     h.text('官网有新消息：\n'),
-            //     h.text(`标题：${newData.title}\n`),
-            //     h.text(`原文：${newData.content}\n`),
-            //     h.text(`链接：${newContentUrl}`)
-            // ])
+                await addNews(newData, ctx)
+            } catch (error) {
+                page.close()
+                logger.error(error)
+                logger.error('新闻-发送新闻异常。')
+                session.send('新闻-发送新闻异常。')
+            }
 
-            //将图像缓冲区转换为 Base64 编码的字符串
-            const base64Image = imageBuffer.toString('base64');
-
-            // 创建数据 URI
-            const dataURI = `data:image/png;base64,${base64Image}`;
-
-          
-            message.push(<>
-                <img src={dataURI}/><br/>
-                <text content={'官网有新消息：'} /><br/>
-                <text content={`标题：${newData.title}`} /><br/>
-                <text content={`原文：${newData.content}`} /><br/>
-                <a href={newData.url} >链接：</a><br/>
-                {data.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
-                </>)
-            newMsgs.push({
-                title: newData.title,
-                content: newData.content,
-                imgbase64: dataURI,
-                type: newData.type,
-                url: newContentUrl,
-                isOverHight: data.isOverHight
-            })
-            
+        }else {
+            logger.info('没有新公告')
 
         }
 
         // 关闭浏览器
         page.close()
-        
-
-
-
-        message.forEach(async (msg) => {
-            // let res = config.onebotLastNew.map(item => 'onebot:' + item)
-            // await ctx.broadcast([...config.goroupLastNew], msg)
-            await (ctx as any).broadcast([...config.goroupLastNew], msg)
-
-        })
-        
-        // 判断有新的公告才替换数据库中的新公告
-        if(newMsgs.length > 0) {
-            await createNewMessage(newMsgs, ctx)
-        }
-        
         return
+        
+     
     })
     ctx.command('ms/公告', '获取官方最新公告')
     .alias('官网', 'new')
-    .action(async ({session}) => {
-       let datas = await getAllNewMessage(ctx)
+    .option('event', '-e 活动公告')
+    .option('sale', '-s 商城公告')
+    .option('maintenance', '-m 维护公告')
+    .option('general', '-g 一般公告')
+    .option('community', '-c 社区公告')
+    .action(async ({session, options}) => {
+        let map = {
+            'EVENTS': '活动公告',
+            'SALE': '商城公告',
+            'MAINTENANCE': '维护公告',
+            'GENERAL': '一般公告',
+            'COMMUNITY': '社区公告',
+            'NEW': '最新公告'
+        
+        }
+
+        let type = 'NEW'
+
+        if(options.event) type = 'EVENTS'
+        if(options.sale) type = 'SALE'
+        if(options.maintenance) type = 'MAINTENANCE'
+        if(options.general) type = 'GENERAL'
+        if(options.community) type = 'COMMUNITY'
+        let newDatas
+        if(type != 'NEW') {
+    
+            newDatas = await ctx.database.get('newData', {
+                type,
+                isNew: false
+            })
+
+        }else {
+            newDatas = await ctx.database.get('newData', {
+                isNew: true
+            })
+        }
+
+        if(newDatas.length === 0) {
+            return `暂无${map[type]}`
+        }
+        let msg = <>
+        <img src={newDatas[0].imgbase64}/><br/>
+        <text content={'官网有新消息：'} /><br/>
+        <text content={`标题：${newDatas[0].title}`} /><br/>
+        <text content={`原文：${newDatas[0].content}`} /><br/>
+        <a href={newDatas[0].url} >链接：</a><br/>
+        {newDatas[0].isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
+        </>
+        return msg
+        
+
+
+
+
+    //    let datas = await getAllNewMessage(ctx)
     //    const message = datas.map(obj => {
     //     return Object.values(obj);
     //   })
-    datas.forEach(msg => {
-        session.send(
-            <>
-            <img src={msg.imgbase64}/> <br />
-            <text content={'官网有新消息：'} /> <br />
-            <text content={`标题：${msg.title}`} /> <br />
-            <text content={`原文：${msg.content}`} /> <br />
-            <a href={msg.url}>链接：</a><br />
-            {msg.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
-            </>
-        )
-      })
-      return
+    // datas.forEach(msg => {
+    //     session.send(
+    //         <>
+    //         <img src={msg.imgbase64}/> <br />
+    //         <text content={'官网有新消息：'} /> <br />
+    //         <text content={`标题：${msg.title}`} /> <br />
+    //         <text content={`原文：${msg.content}`} /> <br />
+    //         <a href={msg.url}>链接：</a><br />
+    //         {msg.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
+    //         </>
+    //     )
+    //   })
+    //   return
 
     })
 
@@ -1540,3 +1603,18 @@ async function bindGms(ctx: Context, name: string, userId: string) {
     }
     return '绑定成功'
 }
+
+  async function saveImageToFile(arrayBuffer: string, filename: string) {
+    return new Promise((resolve, reject) => {
+      const fileStream = fs.createWriteStream(filename);
+      fileStream.write(Buffer.from(arrayBuffer));
+      fileStream.end();
+      fileStream.on('finish', () => {
+        logger.info(`Image saved to ${filename}`);
+        resolve(fileStream); 
+      });
+      fileStream.on('error', (error) => {
+        reject(error);
+      });
+    });
+  }

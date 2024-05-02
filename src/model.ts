@@ -79,7 +79,10 @@ export interface newData {
     type: string,
     title: string,
     url: string,
-    content: string
+    content: string,
+    isNew: boolean,
+    imgbase64?: string,
+    isOverHight?: boolean
 }
   
 
@@ -128,7 +131,10 @@ export default function apply(ctx: Context, config: Config) {
         type: 'string',
         title: 'string',
         url: 'string',
-        content: 'text'
+        content: 'text',
+        isNew: 'boolean',
+        imgbase64: 'text',
+        isOverHight: 'boolean'
     }, {
         primary: 'id',
         autoInc: true,
@@ -308,7 +314,9 @@ export function createNewData(data: newData, ctx: Context) {
 }
 
 export function getAllNewData(ctx: Context): Promise<newData[]> {
-    return ctx.database.get('newData',{})
+    return ctx.database.get('newData',{
+        isNew: true
+    })
 }
 
 export function getAllNewMessage(ctx: Context): Promise<newMessage[]> {
@@ -321,20 +329,43 @@ export async function createNewMessage(datas: newMessage[], ctx: Context) {
 }
 
 
-export async function getLastNews(datas: newData[], ctx: Context) {
+export async function getLastNews(data: newData, ctx: Context) {
 
-    let newDatas = await getAllNewData(ctx)
+    let newDatas = await ctx.database.get('newData',{
+        isNew: true,
+    })
+
+    if(newDatas.length > 0) {
+        if(newDatas[0].url !== data.url) {
+            await ctx.database.set('newData', {
+                id: newDatas[0].id
+            }, data)
+            return newDatas[0].id
+        }
+        return null
+    }else {
+        data = await ctx.database.create('newData', data)
+        return data.id
+    }
     
-
-    const oldTitles = newDatas.map(item => item.url)
-
-
-    let lastNews = datas.filter(item => !oldTitles.includes(item.url))
+}
 
 
-    await ctx.database.remove('newData',{})
-    await ctx.database.upsert('newData', (row) => datas)
+export async function addNews(data: newData, ctx: Context) {
+    data.isNew = false
+    // 如果数据库有数据则更新，没有则新增,条件为type
+    let newDatas = await ctx.database.get('newData', {
+        type: data.type,
+        isNew: false
+    })
+    if(newDatas.length > 0) {
+        return ctx.database.set('newData', {
+            id: newDatas[0].id
+        }, data)
+    }else {
+        return ctx.database.create('newData', data)
+    }
 
-    
-    return lastNews
+
+
 }
