@@ -56,19 +56,49 @@ export default function apply(ctx: Context, config: Config) {
         return c
     })
 
-    ctx.command('ms', "冒险岛相关指令")
+    ctx.command('ms', "冒险岛相关指令，如需了解指令详细使用在后面加-h")
+    .example('学习 -h')
+    .example('搜索 -h')
+    .example('删除 -h')
+    .example('关联 -h')
 
     ctx.command('ms/学习 <q:string> <a:text>', '学习词条')
     .usage('学习词条，第一个参数是词条，第二个参数是词条内容，中间空格隔开')
     .example('学习 蠢猫 蠢猫不在了')
+    .example('学习 （不输入参数则根据提示输入内容）')
     .action(async ({session}, q, a) => {
-        if(q === undefined || a === undefined) {
-            session.execute('学习 -h')
-            return 
+        if(q === undefined) {
+            await session.send('请在下一条消息输入词条名称')
+            q = await session.prompt()
+            if (!q) return <>
+                <at id={session.userId} /> 输入超时。
+            </>
+            const selectQ = await getQuestionByquestion(q, ctx)
+            if(selectQ) return "词条已存在"
+            await session.send('请在下一条消息输入词条内容')
+            a = await session.prompt()
+            if (!a) return <>
+                <at id={session.userId} /> 输入超时。
+            </>
         }
 
-        logger.info("词条是：" +q,"词条内容是："+  a)
         q = q.toLowerCase()
+
+        let selectQ = await getQuestionByquestion(q, ctx)
+        if(selectQ) return "词条已存在"
+
+        if(a === undefined) {
+            await session.send(`已输入词条【${q}】,请在下一条消息输入词条内容`)
+            a = await session.prompt()
+            if (!a) return <>
+                <at id={session.userId} /> 输入超时。
+            </>
+        }
+
+
+        logger.info("词条是：" +q,"词条内容是："+  a)
+
+
         a = a.replace(/amp;/g, "")
         a = a.replace(/file="(.+?)"/g, (match) => {
             const fileName = uuidv4() + '.png'
@@ -112,13 +142,17 @@ export default function apply(ctx: Context, config: Config) {
 
     })
 
-    ctx.command('ms/查询 <key:string>', "关键字查询")
-    .usage("关键字查询，参数为需要查询的关键字，可根据关键字查询词条和词条内容")
-    .example("查询 蠢猫")
+    ctx.command('ms/搜索 <key:string>', "关键字搜索")
+    .usage("关键字搜索，参数为需要搜索的关键字，可根据关键字搜索词条和词条内容")
+    .example("搜索 蠢猫")
+    .example("搜索 （不输入参数则根据提示输入内容）")
     .action(async ({session}, key) => {
         if(key === undefined) {
-            session.execute('查询 -h')
-            return
+            await session.send('请在下一条消息输入要搜索的关键字')
+            key = await session.prompt()
+            if (!key) return <>
+                <at id={session.userId} /> 输入超时。
+            </>
         }
 
 
@@ -136,12 +170,16 @@ export default function apply(ctx: Context, config: Config) {
     ctx.command('ms/删除 <q:string>', "删除词条")
     .usage("删除词条，参数为需要删除的词条名称，只能删除自己创建的词条")
     .example("删除 蠢猫")
+    .example("删除 （不输入参数则根据提示输入内容）")
     .userFields(['authority'])
     .action (async ({session}, q) => {
 
         if(q === undefined) {
-            session.execute('删除 -h')
-            return
+            await session.send('请在下一条消息输入要搜删除的词条名称')
+            q = await session.prompt()
+            if (!q) return <>
+                <at id={session.userId} /> 输入超时。
+            </>
         }
         const user = session.user;
         let question = await getQuestionByquestion(q, ctx)
@@ -154,7 +192,6 @@ export default function apply(ctx: Context, config: Config) {
 
 
         let res = await delQestionsByQuestion(q, question.answerid, session.userId, ctx)
-        let num = res.removed
         if(res.removed > 0) {
             return "删除成功"
         }else {
@@ -438,7 +475,6 @@ export default function apply(ctx: Context, config: Config) {
     ctx.command('ms/联盟查询 <name:string>', '查询角色信息')
     .example('联盟查询 leslee520')
     .action(async ({session}, name) => {
-
         if(!name) {
             let info: gmsInfo[] = await ctx.database.get('gmsInfo', {
                 userId: session.userId,
@@ -455,49 +491,35 @@ export default function apply(ctx: Context, config: Config) {
             name = info[0].name
         }
 
+        const url = `https://api.maplestory.gg/v2/public/character/gms/${name}`
+
+        try {
+            await ctx.http.get(url)
+        } catch (error) {
+            return '角色不存在'
+        }
+
         const page = await ctx.puppeteer.page()
         // const browser = ctx.puppeteer.browser
 
-        const characterData = await getCharacterData(name, page, session)
+        try {
+            const characterData = await getCharacterData(name, page, session)
 
-        if(characterData == null) return '角色不存在'
+            if(characterData == null) return '角色不存在'
+    
+            let imageBuffer = await generateCharacterImage(page, characterData, config)
+            page.close()
 
-        let imageBuffer = await generateCharacterImage(page, characterData, config)
+            return h.image(imageBuffer, 'image/png')
 
-        page.close()
-        return h.image(imageBuffer, 'image/png')
-
-        // const page = await ctx.puppeteer.page()
-        // await page.setViewport({
-        //     width: 1800,
-        //     height: 1532
-        // })
-
-        // const url = `https://mapleranks.com/u/leslee521`
-        // await page.goto(url, {
-        //     waitUntil: 'load',
-        //     timeout: 30000,
-        // })
-
-        // const s = await page.$('#content')
-        // page.on('load', async() => {
-        //     logger.info('load')
-
-        // })
-        // const clip = await page.evaluate(() => {
-        //     const songList = document.getElementById('content')
-        //     eval('zmChs(14)')
-            
-        //     const { left: x, top: y, width, height } = songList.getBoundingClientRect()
-        //     return { x, y, width, height }
-        // })
-        // await new Promise(resolve => setTimeout(resolve, 1000)); // 等待 2 秒钟
+        } catch (error) {
+            page.close()
+        }
 
 
-        // const imageBuffer = await page.screenshot({clip})
-        // logger.info('233')
-        // page.close()
-        // return h.image(imageBuffer, 'image/png')
+        return '联盟查询异常'
+
+
 
     })
 
@@ -505,142 +527,142 @@ export default function apply(ctx: Context, config: Config) {
 
 
 
-    ctx.command('test2')
-    .action(async ({session}) => {
-        const page = await ctx.puppeteer.page()
-        page.setViewport({
-            width: 1800,
-            height: 1532
-        })
-        // const url = `https://maplestory.nexon.net/news`
-        // await page.goto(url, {
-        //     waitUntil: 'networkidle0',
-        //     timeout: 30000,
-        // })
+    // ctx.command('test2')
+    // .action(async ({session}) => {
+    //     const page = await ctx.puppeteer.page()
+    //     page.setViewport({
+    //         width: 1800,
+    //         height: 1532
+    //     })
+    //     // const url = `https://maplestory.nexon.net/news`
+    //     // await page.goto(url, {
+    //     //     waitUntil: 'networkidle0',
+    //     //     timeout: 30000,
+    //     // })
 
-        // const newsData = await page.evaluate(() => {
-        //     // // 获取新闻类型
-        //     // let type = document.querySelectorAll('li.news-item[data-equalizer=""]')[1].querySelector('div.label').innerHTML
+    //     // const newsData = await page.evaluate(() => {
+    //     //     // // 获取新闻类型
+    //     //     // let type = document.querySelectorAll('li.news-item[data-equalizer=""]')[1].querySelector('div.label').innerHTML
 
-        //     // // 获取新闻标题
-        //     // const title = document.querySelectorAll('li.news-item[data-equalizer=""]')[1]?.querySelectorAll('a')[1]?.innerText
+    //     //     // // 获取新闻标题
+    //     //     // const title = document.querySelectorAll('li.news-item[data-equalizer=""]')[1]?.querySelectorAll('a')[1]?.innerText
             
-        //     // // 获取新闻详情url
-        //     // const url = document.querySelectorAll('li.news-item[data-equalizer=""]')[1]?.querySelectorAll('a')[1]?.href
+    //     //     // // 获取新闻详情url
+    //     //     // const url = document.querySelectorAll('li.news-item[data-equalizer=""]')[1]?.querySelectorAll('a')[1]?.href
 
-        //     const list: newData[] = [];
-        //     document.querySelectorAll('li.news-item[data-equalizer=""]').forEach(element => {
-        //         const type = element?.querySelector('div.label')?.innerHTML
-        //         const title = element?.querySelectorAll('a')[1]?.innerText
-        //         const url = element?.querySelectorAll('a')[1]?.href
-        //         const content = element.querySelector('p')?.innerText
+    //     //     const list: newData[] = [];
+    //     //     document.querySelectorAll('li.news-item[data-equalizer=""]').forEach(element => {
+    //     //         const type = element?.querySelector('div.label')?.innerHTML
+    //     //         const title = element?.querySelectorAll('a')[1]?.innerText
+    //     //         const url = element?.querySelectorAll('a')[1]?.href
+    //     //         const content = element.querySelector('p')?.innerText
 
-        //         list.push({
-        //             type,
-        //             title,
-        //             url,
-        //             content,
-        //         })
-        //     })
-        //     return list
-        // })
+    //     //         list.push({
+    //     //             type,
+    //     //             title,
+    //     //             url,
+    //     //             content,
+    //     //         })
+    //     //     })
+    //     //     return list
+    //     // })
 
-        // logger.info(newsData)
+    //     // logger.info(newsData)
 
 
-        // let message = new Array()
-        // for (const newData of newsData) {
-        //     const newContentUrl = newData.url
-        //     await page.goto(newContentUrl, {
-        //         waitUntil: 'networkidle0',
-        //         timeout: 30000,
-        //     })
-        //     let content = await page.$('div.component.component-news-article')
-        //     await content.evaluate(() => {
-        //         document.querySelector('#onetrust-banner-sdk').remove()
-        //         document.querySelector('.global-header').remove()
-        //         document.querySelector('#gnt').remove()
-        //     })
-        //     let imageBuffer = await content.screenshot({})
-        //     logger.info(imageBuffer.byteLength)
+    //     // let message = new Array()
+    //     // for (const newData of newsData) {
+    //     //     const newContentUrl = newData.url
+    //     //     await page.goto(newContentUrl, {
+    //     //         waitUntil: 'networkidle0',
+    //     //         timeout: 30000,
+    //     //     })
+    //     //     let content = await page.$('div.component.component-news-article')
+    //     //     await content.evaluate(() => {
+    //     //         document.querySelector('#onetrust-banner-sdk').remove()
+    //     //         document.querySelector('.global-header').remove()
+    //     //         document.querySelector('#gnt').remove()
+    //     //     })
+    //     //     let imageBuffer = await content.screenshot({})
+    //     //     logger.info(imageBuffer.byteLength)
 
-        //     message.push([
-        //         h.image(imageBuffer, 'image/png'),
-        //         h.text('官网有新消息：\n'),
-        //         h.text(`标题：${newData.title}\n`),
-        //         h.text(`原文：${newData.content}\n`),
-        //         h.text(`链接：${newContentUrl}`)
-        //     ])
-        // }
+    //     //     message.push([
+    //     //         h.image(imageBuffer, 'image/png'),
+    //     //         h.text('官网有新消息：\n'),
+    //     //         h.text(`标题：${newData.title}\n`),
+    //     //         h.text(`原文：${newData.content}\n`),
+    //     //         h.text(`链接：${newContentUrl}`)
+    //     //     ])
+    //     // }
 
-        // message.forEach((msg) => {
-        //     session.send(msg)
-        // })
-        // return
+    //     // message.forEach((msg) => {
+    //     //     session.send(msg)
+    //     // })
+    //     // return
 
-        const newContent = `https://maplestory.nexon.net/news/91252/cash-shop-update-on-april-17`
-        await page.goto(newContent, {
-            waitUntil: 'networkidle0',
-            timeout: 30000,
-        })
+    //     const newContent = `https://maplestory.nexon.net/news/91252/cash-shop-update-on-april-17`
+    //     await page.goto(newContent, {
+    //         waitUntil: 'networkidle0',
+    //         timeout: 30000,
+    //     })
 
-        let clip = await page.evaluate(() => {
-            // document.querySelector("div[class='component component-news-article']")?.style
-            // (document.querySelector("div[class='component component-news-article']") as HTMLElement).style.width = '400px'
-            const contentElement = document.querySelector("div[class='component component-news-article']")
+    //     let clip = await page.evaluate(() => {
+    //         // document.querySelector("div[class='component component-news-article']")?.style
+    //         // (document.querySelector("div[class='component component-news-article']") as HTMLElement).style.width = '400px'
+    //         const contentElement = document.querySelector("div[class='component component-news-article']")
             
-            // (document.querySelector("div[class='component component-news-article']") as HTMLElement).style.height = height * 0.9.valueOf() + 'px'
-            // let h = (document.querySelectorAll('div.small-12.small-centered.columns')[1] as HTMLElement).offsetWidth;
-            // (document.querySelectorAll('div.small-12.small-centered.columns')[1] as HTMLElement).style.width = h * 1.4.valueOf() + 'px'
-            const { left: x, top: y, width, height } = contentElement.getBoundingClientRect();
+    //         // (document.querySelector("div[class='component component-news-article']") as HTMLElement).style.height = height * 0.9.valueOf() + 'px'
+    //         // let h = (document.querySelectorAll('div.small-12.small-centered.columns')[1] as HTMLElement).offsetWidth;
+    //         // (document.querySelectorAll('div.small-12.small-centered.columns')[1] as HTMLElement).style.width = h * 1.4.valueOf() + 'px'
+    //         const { left: x, top: y, width, height } = contentElement.getBoundingClientRect();
 
-            return { x, y, width, height }
-        })
+    //         return { x, y, width, height }
+    //     })
 
-        logger.info(clip)
+    //     logger.info(clip)
 
-        let content = await page.$('div.component.component-news-article')
-        // let content = await page.$('div.small-12.small-centered.columns')
+    //     let content = await page.$('div.component.component-news-article')
+    //     // let content = await page.$('div.small-12.small-centered.columns')
        
 
-        await content.evaluate(() => {
-            document.querySelector('#onetrust-banner-sdk').remove()
-            document.querySelector('.global-header').remove()
-            document.querySelector('#gnt').remove();
+    //     await content.evaluate(() => {
+    //         document.querySelector('#onetrust-banner-sdk').remove()
+    //         document.querySelector('.global-header').remove()
+    //         document.querySelector('#gnt').remove();
 
-        })
-        // await new Promise(resolve => setTimeout(resolve, 2000)); // 等待 2 秒钟
+    //     })
+    //     // await new Promise(resolve => setTimeout(resolve, 2000)); // 等待 2 秒钟
 
 
-        let imageBuffer = await content.screenshot({})
-        logger.info(imageBuffer.byteLength)
-        page.close()
+    //     let imageBuffer = await content.screenshot({})
+    //     logger.info(imageBuffer.byteLength)
+    //     page.close()
 
-        // 将图像缓冲区转换为 Base64 编码的字符串
-        // const base64Image = imageBuffer.toString('base64');
+    //     // 将图像缓冲区转换为 Base64 编码的字符串
+    //     // const base64Image = imageBuffer.toString('base64');
 
-        // // 创建数据 URI
-        // const dataURI = `data:image/png;base64,${base64Image}`;
+    //     // // 创建数据 URI
+    //     // const dataURI = `data:image/png;base64,${base64Image}`;
 
-        session.send([
-            h.image(imageBuffer, 'image/png'),
-            h.text('官网有新消息:\n'),
-            h.text(`标题：\n`),
-            h.text(`原文：\n`),
-            h.text(`链接：${newContent}`)
-        ])
-        return 
-    })
+    //     session.send([
+    //         h.image(imageBuffer, 'image/png'),
+    //         h.text('官网有新消息:\n'),
+    //         h.text(`标题：\n`),
+    //         h.text(`原文：\n`),
+    //         h.text(`链接：${newContent}`)
+    //     ])
+    //     return 
+    // })
 
-    ctx.command('test3')
-    .action(async (session) => {
-        let group = config.goroupLastNew
-        logger.info(group);
-        // let res = await ctx.broadcast([...group], "全体目光先我看齐")
-        let res = await (ctx as any).broadcast([...group], "全体目光先我看齐")
+    // ctx.command('test3')
+    // .action(async (session) => {
+    //     let group = config.goroupLastNew
+    //     logger.info(group);
+    //     // let res = await ctx.broadcast([...group], "全体目光先我看齐")
+    //     let res = await (ctx as any).broadcast([...group], "全体目光先我看齐")
 
-        logger.info("发送消息：" + res)
-    })
+    //     logger.info("发送消息：" + res)
+    // })
     
 
     ctx.on('bot-status-updated', (bot) => {

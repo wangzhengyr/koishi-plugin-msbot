@@ -218,18 +218,20 @@ export async function delQestionsByQuestion(q: string, answerId: number, userId:
         // 使用正则表达式匹配文件路径
         const filePathRegex = /file:\/\/(.+?)(?=")/g;
         const matches = answer.answer.match(filePathRegex)
-
-        for (const match of matches) {
-            const filePath = match[1];
-            // 删除文件
-            fs.unlink(filePath, (err) => {
-              if (err) {
-                logger.info(`删除文件 ${filePath} 失败:`, err)
-              } else {
-                logger.info(`文件 ${filePath} 删除成功`)
+        if(matches) {
+            for (const match of matches) {
+                const filePath = match.replace("file://", "");
+                // 删除文件
+                fs.unlink(filePath, (err) => {
+                  if (err) {
+                    logger.info(`删除文件 ${filePath} 失败:`, err)
+                  } else {
+                    logger.info(`文件 ${filePath} 删除成功`)
+                  }
+                })
               }
-            })
-          }
+        }
+
 
 
         ctx.database.remove('answers', { 
@@ -324,10 +326,10 @@ export async function getLastNews(datas: newData[], ctx: Context) {
     let newDatas = await getAllNewData(ctx)
     
 
-    const oldTitles = newDatas.map(item => item.title)
+    const oldTitles = newDatas.map(item => item.url)
 
 
-    let lastNews = datas.filter(item => !oldTitles.includes(item.title))
+    let lastNews = datas.filter(item => !oldTitles.includes(item.url))
 
 
     await ctx.database.remove('newData',{})
