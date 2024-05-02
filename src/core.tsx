@@ -387,10 +387,10 @@ export default function apply(ctx: Context, config: Config) {
             try {
                 logger.info(imageBuffer.byteLength)
                 //将图像缓冲区转换为 Base64 编码的字符串
-                // const base64Image = imageBuffer.toString('base64')
+                const base64Image = imageBuffer.toString('base64')
     
-                // // 创建数据 URI
-                // const dataURI = `data:image/png;base64,${base64Image}`
+                // 创建数据 URI
+                const dataURI = `data:image/png;base64,${base64Image}`
 
                 const filename = `${uuidv4()}.png`;
                 const filepath = resolve(process.cwd(), 'data', 'locales', 'news', filename);
@@ -410,7 +410,7 @@ export default function apply(ctx: Context, config: Config) {
                     id: newDataId
                 },newData)
                 let msg = <>
-                    <img src={filepath}/><br/>
+                    <img src={dataURI}/><br/>
                     <text content={'官网有新消息：'} /><br/>
                     <text content={`标题：${newData.title}`} /><br/>
                     <text content={`原文：${newData.content}`} /><br/>
