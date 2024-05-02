@@ -590,6 +590,23 @@ export default function apply(ctx: Context, config: Config) {
 
     })
 
+    ctx.command('今日早报')
+    .action(async ({session}) => {
+        const api = "http://dwz.2xb.cn/zaob"
+        let res = await ctx.http.get(api)
+        return h.image(res.imageUrl)
+    })
+
+    ctx.command('dailynews')
+    .action(async ({session}) => {
+        const api = "http://dwz.2xb.cn/zaob"
+        let res = await ctx.http.get(api)
+        await (ctx as any).broadcast([...config.groupDailyNews], h.image(res.imageUrl))
+        return
+    })
+
+
+
 
 
 
@@ -1596,12 +1613,21 @@ async function bindGms(ctx: Context, name: string, userId: string) {
     }
 
     try {
-        await ctx.database.upsert('gmsInfo', [
-            {
-                userId: userId,
-                name: name,
-            }
-        ], 'userId')
+        let gmsInfo = await ctx.database.get('gmsInfo',{
+            userId
+        })
+        if(gmsInfo.length > 0) {
+            await ctx.database.set('gmsInfo', {
+                userId
+            }, {
+                name
+            })
+        }else {
+            await ctx.database.create('gmsInfo', {
+                userId,
+                name
+            })
+        }
     } catch (error) {
         return '绑定失败'
     }
