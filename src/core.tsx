@@ -610,6 +610,32 @@ export default function apply(ctx: Context, config: Config) {
         return
     })
 
+    let [min, max] = [
+        config.min_default,
+        config.max_default,
+      ];
+      ctx
+        .command("roll [...args]", "roll 整数")
+        .alias('roll点')
+        .usage("rd [[l] [r]] [num=1]（包含左右边界）")
+        .action(async ({ session }, ...args) => {
+          switch (args.length) {
+            case 0:
+              return rd(min, max).toString();
+            case 1:
+              return Array.apply(null, Array(parseInt(args[0])))
+                .map((_) => rd(min, max))
+                .join(" ");
+            case 2:
+              return rd(parseInt(args[0]), parseInt(args[1])).toString();
+            case 3:
+              return Array.apply(null, Array(parseInt(args[2])))
+                .map((_) => rd(parseInt(args[0]), parseInt(args[1])))
+                .join(" ");
+            default:
+              return "Invalid args";
+          }
+        })
 
 
 
@@ -1605,17 +1631,7 @@ async function bindGms(ctx: Context, name: string, userId: string) {
     return '绑定成功'
 }
 
-  async function saveImageToFile(arrayBuffer: string, filename: string) {
-    return new Promise((resolve, reject) => {
-      const fileStream = fs.createWriteStream(filename);
-      fileStream.write(Buffer.from(arrayBuffer));
-      fileStream.end();
-      fileStream.on('finish', () => {
-        logger.info(`Image saved to ${filename}`);
-        resolve(fileStream); 
-      });
-      fileStream.on('error', (error) => {
-        reject(error);
-      });
-    });
-  }
+function rd(min: number, max: number): number {
+    if (min > max) [min, max] = [max, min];
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}

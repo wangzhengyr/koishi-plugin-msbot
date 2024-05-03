@@ -21,7 +21,9 @@ export interface Config {
   groupMvp2: string[],
   goroupLastNew: string[],
   delAuthority: number,
-  groupDailyNews: string[]
+  groupDailyNews: string[],
+  min_default: number,
+  max_default: number
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -34,7 +36,11 @@ export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     delAuthority: Schema.number().max(5).min(0).default(2).description('可以删除全部问题的权限配置'),
 
-  }).description('词条相关配置')
+  }).description('词条相关配置'),
+  Schema.object({
+    min_default: Schema.number().default(1).description("整数默认最小值"),
+    max_default: Schema.number().default(100).description("整数默认最大值（含）"),
+  }).description('roll点相关配置'),
 ])
 
 
