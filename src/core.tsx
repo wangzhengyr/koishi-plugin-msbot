@@ -75,14 +75,6 @@ export default function apply(ctx: Context, config: Config) {
             if (!q) return <>
                 <at id={session.userId} /> 输入超时。
             </>
-            const selectQ = await getQuestionByquestion(q, ctx)
-            if(selectQ) return "词条已存在"
-            await session.send('请在下一条消息输入词条内容')
-            a = await session.prompt()
-            logger.info(a)
-            if (!a) return <>
-                <at id={session.userId} /> 输入超时。
-            </>
         }
 
         q = q.toLowerCase()
@@ -114,9 +106,9 @@ export default function apply(ctx: Context, config: Config) {
         let answer = buildAnswer(a)
         let result = await addQestuinAndAnswer(answer, question, ctx)
         if(result === null || result === undefined) {
-            return "词条已存在"
+            return `词条【${q}】已存在`
         }else {
-            return "添加成功"
+            return `添加词条【${q}】成功`
         }
     })
 
@@ -124,25 +116,37 @@ export default function apply(ctx: Context, config: Config) {
     .usage('关联词条，第一个参数是新增的词条，第二个参数是需要关联的词条，关联后词条内容都一样，中间空格隔开')
     .example('关联 cm 蠢猫')
     .action(async ({session}, q1, q2) => {
-        if(q1 === undefined || q2 === undefined) {
-            session.execute('关联 -h')
-            return 
+        if(q1 === undefined) {
+            await session.send('请在下一条消息输入新增词条名称')
+            q1 = await session.prompt()
+            if (!q1) return <>
+                <at id={session.userId} /> 输入超时。
+            </>
         }
+
         q1 = q1.toLowerCase()
-        q2 = q2.toLowerCase()
+
         let questions = await getQuestionByquestion(q1, ctx)
-        let questions2 = await getQuestionByquestion(q2, ctx)
-        if(questions) {
-            return "新增词条已存在：" + q1
+        if(questions) return `新增词条【${q1}】已存在`
+
+        if(q2 === undefined) {
+            await session.send(`已输入新增的词条【${q1}】,请在下一条消息输入关联词条名称`)
+            q2 = await session.prompt()
+            if (!q2) return <>
+                <at id={session.userId} /> 输入超时。
+            </>
         }
+
+        q2 = q2.toLowerCase()
+        let questions2 = await getQuestionByquestion(q2, ctx)
         if(!questions2) {
-            return "关联词条不存在：" + q2
+            return `关联词条【${q2}】不存在`
        }
 
        // 取出q2中的answerid字段并赋值给q1
        let question = buildQuestion(q1, questions2.answerid, 0, session.userId)
        await addQuestion(question, ctx)
-       return "关联成功"
+       return `词条【${q1}】与【${q2}】关联成功`
 
     })
 
@@ -188,7 +192,7 @@ export default function apply(ctx: Context, config: Config) {
         const user = session.user;
         let question = await getQuestionByquestion(q, ctx)
         if(!question) {
-            return "词条不存在"
+            return `词条【${q}】不存在`
         }
         if(session.userId !== question.createdid && user.authority <= config.delAuthority) {
             return "只能删除自己创建的词条"
@@ -197,43 +201,44 @@ export default function apply(ctx: Context, config: Config) {
 
         let res = await delQestionsByQuestion(q, question.answerid, session.userId, ctx)
         if(res.removed > 0) {
-            return "删除成功"
+            return `词条【${q}】删除成功`
         }else {
-            return "删除失败"
+            return `词条【${q}】删除失败`
         }
         
         // session.send(`您的权限等级为：${user.authority}`);
     })
    
-    // ctx.middleware(async (session, next) => {
-    //     logger.info(session.content);
-    //     // const regex = /学习问(.+?)答(.+?)$/
-    //     const regex = /学习问([\s\S]+?)答([\s\S]+?)$/
-    //     let matchs = session.content.match(regex)
-    //     if (matchs != null && matchs.length === 3) {
-    //         let q = matchs[1];
-    //         let a = matchs[2];
-            
-    //         a = a.replace(/amp;/g, "");
-    //         a = a.replace(/file="(.+?)"/g, (match) => {
-    //             const fileName = uuidv4() + '.png'
-    //             return `file="${fileName}"`; // 返回替换后的字符串
-    //         });
-    //         logger.info(a)
-    //         a = await ctx.assets.transform(a)
-    //         let question = buildQuestion(q, 0, 0, session.userId)
-    //         let answer = buildAnswer(a)
-    //         let result = await addQestuinAndAnswer(answer, question, ctx)
-    //         if(result === null || result === undefined) {
-    //             return "词条已存在"
-    //         }else {
-    //             return "添加成功"
-    //         }
-    //     } else {
-    //       // 如果去掉这一行，那么不满足上述条件的消息就不会进入下一个中间件了
-    //       return next();
-    //     }
-    // });
+
+    ctx.command('ms/修改词条', '根据提示修改词条内容')
+    .usage('根据提示修改词条内容')
+    .action(async ({session}) => {
+        let q: string, a : string
+        await session.send('请在下一条消息输入要修改的词条名称')
+        q = await session.prompt()
+        if (!q) return <>
+            <at id={session.userId} /> 输入超时。
+        </>
+
+        let question = await getQuestionByquestion(q, ctx)
+        if(!question) {
+            return `词条【${q}】不存在`
+        }
+
+        await session.send(`已输入词条【${q}】,请在下一条消息输入要修改的词条内容`)
+        a = await session.prompt()
+        if (!a) return <>
+            <at id={session.userId} /> 输入超时。
+        </>
+        ctx.database.set('answers', {
+            id: question.answerid
+        }, {
+            answer: a
+        })        
+
+        return `修改词条【${q}】成功`
+    })
+
 
 
     ctx.middleware(async (session, next) => {
@@ -848,30 +853,34 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
             const total_exp_7 = (document.querySelectorAll('div.d-inline-block.pe-3.border-end.char-exp-cell>span')[2]as HTMLElement)?.innerText
             const total_exp_14 = (document.querySelectorAll('div.d-inline-block.ps-2.char-exp-cell>span')[2] as HTMLElement)?.innerText
 
-            const fujin_job_rank_name_1 = document.querySelectorAll('strong')[0]?.innerText
-            const fujin_job_rank_name_2 = document.querySelectorAll('strong')[1]?.innerText
-            const fujin_job_rank_name_3 = document.querySelectorAll('strong')[2]?.innerText
-            const fujin_job_rank_name_4 = document.querySelectorAll('strong')[3]?.innerText
-            const fujin_job_rank_name_5 = document.querySelectorAll('strong')[4]?.innerText
-            
-            const fujin_job_rank_lv_1 = (document.querySelectorAll('div.alert.text-white.py-2>span')[0] as HTMLElement)?.innerText
-            const fujin_job_rank_lv_2 = (document.querySelectorAll('div.alert.text-white.py-2>span')[1] as HTMLElement)?.innerText
-            const fujin_job_rank_lv_3 = (document.querySelectorAll('div.alert.text-white.py-2>span')[2] as HTMLElement)?.innerText
-            const fujin_job_rank_lv_4 = (document.querySelectorAll('div.alert.text-white.py-2>span')[3] as HTMLElement)?.innerText
-            const fujin_job_rank_lv_5 = (document.querySelectorAll('div.alert.text-white.py-2>span')[4] as HTMLElement)?.innerText
 
-            const fujin_rank_name_1 = document.querySelectorAll('strong')[5]?.innerText
-            const fujin_rank_name_2 = document.querySelectorAll('strong')[6]?.innerText
-            const fujin_rank_name_3 = document.querySelectorAll('strong')[7]?.innerText
-            const fujin_rank_name_4 = document.querySelectorAll('strong')[8]?.innerText
-            const fujin_rank_name_5 = document.querySelectorAll('strong')[9]?.innerText
-            
-            const fujin_rank_lv_1 = (document.querySelectorAll('div.alert.text-white.py-2>span')[5] as HTMLElement)?.innerText
-            const fujin_rank_lv_2 = (document.querySelectorAll('div.alert.text-white.py-2>span')[6] as HTMLElement)?.innerText
-            const fujin_rank_lv_3 = (document.querySelectorAll('div.alert.text-white.py-2>span')[7] as HTMLElement)?.innerText
-            const fujin_rank_lv_4 = (document.querySelectorAll('div.alert.text-white.py-2>span')[8] as HTMLElement)?.innerText
-            const fujin_rank_lv_5 = (document.querySelectorAll('div.alert.text-white.py-2>span')[9] as HTMLElement)?.innerText
+            // 获取附近排名数据
+            const fujin_job_rank_name_lv = []
+            const fujin_rank_name_lv = []
+            const fujin_job_rank_names = document.querySelectorAll('div.accordion-collapse.collapse.show.rkaccord')[0]?.querySelectorAll('strong');
+            const fujin_job_rank_lvs = document.querySelectorAll('div.accordion-collapse.collapse.show.rkaccord')[0]?.querySelectorAll('span');
 
+            if (fujin_job_rank_names && fujin_job_rank_lvs && fujin_job_rank_names.length === fujin_job_rank_lvs.length) {
+                Array.from(fujin_job_rank_names).forEach((nameElement, index) => {
+                    const name = nameElement.innerText;
+                    const lv = fujin_job_rank_lvs[index].innerText;
+                    fujin_job_rank_name_lv.push({ name, lv });
+                });
+            
+            }
+
+            const fujin_rank_names = document.querySelectorAll('div.accordion-collapse.collapse.show.rkaccord')[1]?.querySelectorAll('strong');
+            const fujin_rank_lvs = document.querySelectorAll('div.accordion-collapse.collapse.show.rkaccord')[1]?.querySelectorAll('span');
+
+            if (fujin_rank_names && fujin_rank_lvs && fujin_rank_names.length === fujin_rank_lvs.length) {
+                Array.from(fujin_rank_names).forEach((nameElement, index) => {
+                    const name = nameElement.innerText;
+                    const lv = fujin_rank_lvs[index].innerText;
+                    fujin_rank_name_lv.push({ name, lv });
+                });
+            
+                console.log(fujin_rank_name_lv);
+            }
 
             return {
                 chart,
@@ -894,26 +903,8 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
                 avg_exp_14,
                 total_exp_7,
                 total_exp_14,
-                fujin_job_rank_name_1,
-                fujin_job_rank_name_2,
-                fujin_job_rank_name_3,
-                fujin_job_rank_name_4,
-                fujin_job_rank_name_5,
-                fujin_job_rank_lv_1,
-                fujin_job_rank_lv_2,
-                fujin_job_rank_lv_3,
-                fujin_job_rank_lv_4,
-                fujin_job_rank_lv_5,
-                fujin_rank_name_1,
-                fujin_rank_name_2,
-                fujin_rank_name_3,
-                fujin_rank_name_4,
-                fujin_rank_name_5,
-                fujin_rank_lv_1,
-                fujin_rank_lv_2,
-                fujin_rank_lv_3,
-                fujin_rank_lv_4,
-                fujin_rank_lv_5,
+                fujin_job_rank_name_lv,
+                fujin_rank_name_lv
             }
         })
 
@@ -930,8 +921,8 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
 
     // 判断不是主号，没有联盟信息的情况
     let visibility1 = characterData.legion_bi ? 'visibility':'hidden'
-    let visibility2 = characterData.fujin_job_rank_name_1 ? 'visibility':'hidden'
-    let visibility3 = characterData.fujin_rank_name_1 ? 'visibility':'hidden'
+    let visibility2 = characterData.fujin_job_rank_name_lv.length > 0 ? 'visibility':'hidden'
+    let visibility3 = characterData.fujin_rank_name_lv.length > 0 ? 'visibility':'hidden'
     let visibility4 = characterData.rankInK ? 'visibility':'hidden'
     let visibility5 = characterData.chart ? 'visibility':'hidden'
     let chart_unit
@@ -992,11 +983,66 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
                 }
             }
 
+    }
+    let fujin_job_rank_htmlText = ''
+    let fujin_rank_htmlText = ''
+    if(visibility2 === 'visibility') {
+       
+        characterData.fujin_job_rank_name_lv.forEach(rank => {
+            if(rank.name.split('.')[1].trim() === characterData.name) {
+                fujin_job_rank_htmlText += `
+                    <div class="rank rankshow">
+                        <div style="height: 100%; width: 140px; margin-left: 16px">
+                            <p>${rank.name}</p>
+                        </div>
+                        <div style="height: 100%; width: 130px; text-align: right">
+                            <p>${rank.lv}</p>
+                        </div>
+                    </div>`
+            }else {
+                fujin_job_rank_htmlText += `
+                <div class="rank">
+                    <div style="height: 100%; width: 140px; margin-left: 16px">
+                        <p>${rank.name}</p>
+                    </div>
+                    <div style="height: 100%; width: 130px; text-align: right">
+                        <p>${rank.lv}</p>
+                    </div>
+                </div>`
+            
+            }
+            
 
-
-
-
-
+        })
+    }
+    if(visibility3 === 'visibility') {
+       
+        characterData.fujin_rank_name_lv.forEach(rank => {
+            
+            if(rank.name.split('.')[1].trim() === characterData.name) {
+                fujin_rank_htmlText += `
+                    <div class="rank rankshow">
+                        <div style="height: 100%; width: 140px; margin-left: 16px">
+                            <p>${rank.name}</p>
+                        </div>
+                        <div style="height: 100%; width: 130px; text-align: right">
+                            <p>${rank.lv}</p>
+                        </div>
+                    </div>`
+            }else {
+                fujin_rank_htmlText += `
+                <div class="rank">
+                    <div style="height: 100%; width: 140px; margin-left: 16px">
+                        <p>${rank.name}</p>
+                    </div>
+                    <div style="height: 100%; width: 130px; text-align: right">
+                        <p>${rank.lv}</p>
+                    </div>
+                </div>`
+            
+            }
+            
+        })
     }
     
 
@@ -1215,6 +1261,10 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
         visibility: ${visibility3};
     }
 
+    .rankshow {
+        background-color: #2c3a49 !important;
+        border-color: #5d88b2 !important;
+    }
     .rank {
     width: 305px;
     height: 40px;
@@ -1224,7 +1274,6 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
     .rank p {
     white-space: nowrap; /* 防止文本换行 */
     overflow: hidden; /* 隐藏溢出的文本 */
-    text-overflow: ellipsis; /* 使用省略号显示溢出的文本 */
     }
 
     .yuce {
@@ -1414,89 +1463,11 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
         <div class="hui biaoti2">Reboot Kronos 附近职业排名</div>
         <!-- <div class="ba paiming1" style="background-color: tomato;"></div> -->
         <div class="ba paiming2">
-        <div class="rank">
-            <div style="height: 100%; width: 140px; margin-left: 16px">
-            <p>${characterData.fujin_job_rank_name_1}</p>
-            </div>
-            <div style="height: 100%; width: 130px; text-align: right">
-            <p>${characterData.fujin_job_rank_lv_1}</p>
-            </div>
-        </div>
-        <div class="rank">
-            <div style="height: 100%; width: 140px; margin-left: 16px">
-            <p>${characterData.fujin_job_rank_name_2}</p>
-            </div>
-            <div style="height: 100%; width: 130px; text-align: right">
-            <p>${characterData.fujin_job_rank_lv_2}</p>
-            </div>
-        </div>
-        <div class="rank">
-            <div style="height: 100%; width: 140px; margin-left: 16px">
-            <p>${characterData.fujin_job_rank_name_3}</p>
-            </div>
-            <div style="height: 100%; width: 130px; text-align: right">
-            <p>${characterData.fujin_job_rank_lv_3}</p>
-            </div>
-        </div>
-        <div class="rank">
-            <div style="height: 100%; width: 140px; margin-left: 16px">
-            <p>${characterData.fujin_job_rank_name_4}</p>
-            </div>
-            <div style="height: 100%; width: 130px; text-align: right">
-            <p>${characterData.fujin_job_rank_lv_4}</p>
-            </div>
-        </div>
-        <div class="rank">
-            <div style="height: 100%; width: 140px; margin-left: 16px">
-            <p>${characterData.fujin_job_rank_name_5}</p>
-            </div>
-            <div style="height: 100%; width: 130px; text-align: right">
-            <p>${characterData.fujin_job_rank_lv_5}</p>
-            </div>
-        </div>
+        ${fujin_job_rank_htmlText}
         </div>
         <div class="hui biaoti2">Reboot Kronos 附近总排名</div>
         <div class="ba paiming3">
-        <div class="rank">
-            <div style="height: 100%; width: 140px; margin-left: 16px">
-            <p>${characterData.fujin_rank_name_1}</p>
-            </div>
-            <div style="height: 100%; width: 130px; text-align: right">
-            <p>${characterData.fujin_rank_lv_1}</p>
-            </div>
-        </div>
-        <div class="rank">
-            <div style="height: 100%; width: 140px; margin-left: 16px">
-            <p>${characterData.fujin_rank_name_2}</p>
-            </div>
-            <div style="height: 100%; width: 130px; text-align: right">
-            <p>${characterData.fujin_rank_lv_2}</p>
-            </div>
-        </div>
-        <div class="rank">
-            <div style="height: 100%; width: 140px; margin-left: 16px">
-            <p>${characterData.fujin_rank_name_3}</p>
-            </div>
-            <div style="height: 100%; width: 130px; text-align: right">
-            <p>${characterData.fujin_rank_lv_3}</p>
-            </div>
-        </div>
-        <div class="rank">
-            <div style="height: 100%; width: 140px; margin-left: 16px">
-            <p>${characterData.fujin_rank_name_4}</p>
-            </div>
-            <div style="height: 100%; width: 130px; text-align: right">
-            <p>${characterData.fujin_rank_lv_4}</p>
-            </div>
-        </div>
-        <div class="rank">
-            <div style="height: 100%; width: 140px; margin-left: 16px">
-            <p>${characterData.fujin_rank_name_5}</p>
-            </div>
-            <div style="height: 100%; width: 130px; text-align: right">
-            <p>${characterData.fujin_rank_lv_5}</p>
-            </div>
-        </div>
+        ${fujin_rank_htmlText}
         </div>
     </div>
     </div>

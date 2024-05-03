@@ -23,6 +23,7 @@ export interface gmsInfo {
     name: string
 }
 
+
 export interface characterData {
     chart: number[],
     labels: string[],
@@ -44,28 +45,18 @@ export interface characterData {
     avg_exp_14: string,
     total_exp_7: string,
     total_exp_14: string,
-    fujin_job_rank_name_1: string,
-    fujin_job_rank_name_2: string,
-    fujin_job_rank_name_3: string,
-    fujin_job_rank_name_4: string,
-    fujin_job_rank_name_5: string,
-    fujin_job_rank_lv_1: string,
-    fujin_job_rank_lv_2: string,
-    fujin_job_rank_lv_3: string,
-    fujin_job_rank_lv_4: string,
-    fujin_job_rank_lv_5: string,
-    fujin_rank_name_1: string,
-    fujin_rank_name_2: string,
-    fujin_rank_name_3: string,
-    fujin_rank_name_4: string,
-    fujin_rank_name_5: string,
-    fujin_rank_lv_1: string,
-    fujin_rank_lv_2: string,
-    fujin_rank_lv_3: string,
-    fujin_rank_lv_4: string,
-    fujin_rank_lv_5: string,
+    fujin_job_rank_name_lv: {
+        name: string,
+        lv: string
+    }[],
+    fujin_rank_name_lv: {
+        name: string,
+        lv: string
+    }[]
+
 
 }
+
 
 
 export interface newMessage extends newData{
