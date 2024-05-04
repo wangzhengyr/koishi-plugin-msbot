@@ -508,9 +508,11 @@ export default function apply(ctx: Context, config: Config) {
         if(newDatas.length === 0) {
             return `暂无${map[type]}`
         }
+        type = newDatas[0].type
+
         let msg = <>
         <img src={newDatas[0].imgbase64}/><br/>
-        <text content={'官网有新消息：'} /><br/>
+        <text content={ map[type] } /><br/>
         <text content={`标题：${newDatas[0].title}`} /><br/>
         <text content={`原文：${newDatas[0].content}`} /><br/>
         <a href={newDatas[0].url} >链接：</a><br/>
