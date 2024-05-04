@@ -178,14 +178,16 @@ export async function getAnswerById(id: number, ctx: Context): Promise<Answer> {
 }
 
 export async function getQuestionsByKey(key: string, ctx: Context): Promise<Question[]> {
-    let regex = new RegExp(".*" + key + ".*"); 
+    // let regex = new RegExp(".*" + key + ".*"); 
+    let regex = new RegExp(key); 
     return ctx.database.get('questions', { 
         question: { $regex: regex },
     })
 }
 
 export async function getAnswerBykey(key: string, ctx: Context): Promise<Question[]> {
-    let regex = new RegExp(".*" + key + ".*"); 
+    // let regex = new RegExp(".*" + key + ".*")
+    let regex = new RegExp(key)
     let answer = await ctx.database.get('answers', { 
         answer: { $regex: regex },
     })

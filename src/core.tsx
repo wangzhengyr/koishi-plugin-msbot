@@ -34,6 +34,30 @@ export default function apply(ctx: Context, config: Config) {
 
 
 
+    ctx.server.post('/msg', async (c, next) => {
+        let url =  c.request.body?.url;
+        let text =  c.request.body?.text;
+        let msg = []
+        if(text){
+            msg.push(h.text(text))
+        }
+
+        if(url) {
+            msg.push(h.image(url))
+
+        }
+
+        await (ctx as any).broadcast([...config.groupSendMsg], msg)
+
+
+        c.body = {
+            code: 200,
+            msg: 'success'
+        }
+        return c
+        
+    })
+
     ctx.server.post('/mvp', async (c, next) => {
         let url =  c.request.body.url;
         // ctx.broadcast([...config.groupMvp], h.image(url))
@@ -639,7 +663,7 @@ export default function apply(ctx: Context, config: Config) {
       ctx
         .command("ms/roll [...args]", "roll 整数")
         .alias('roll点')
-        .usage("rd [[l] [r]] [num=1]（包含左右边界）")
+        .usage("roll [[l] [r]] [num=1]（包含左右边界）")
         .action(async ({ session }, ...args) => {
           switch (args.length) {
             case 0:
