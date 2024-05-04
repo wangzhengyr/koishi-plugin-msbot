@@ -4,7 +4,7 @@ import { getQuestionByquestion,getQAndAByQestion, addQuestion, buildAnswer, buil
 import { Config } from './index'
 import {} from 'koishi-plugin-adapter-onebot'
 import {} from 'koishi-plugin-puppeteer'
-import { newData, newMessage, characterData, gmsInfo } from './model'
+import { newData, newMessage, characterData, gmsInfo, delFileByAnswer } from './model'
 import { Page } from 'puppeteer-core'
 import { resolve, dirname } from 'path'
 import fs from 'fs';
@@ -230,7 +230,27 @@ export default function apply(ctx: Context, config: Config) {
         if (!a) return <>
             <at id={session.userId} /> 输入超时。
         </>
-        ctx.database.set('answers', {
+
+
+        a = a.replace(/amp;/g, "")
+        a = a.replace(/file="(.+?)"/g, (match) => {
+            const fileName = uuidv4() + '.png'
+            return `file="${fileName}"` // 返回替换后的字符串
+        });
+        a = await ctx.assets.transform(a)
+        logger.info(a)
+
+
+        let answer = await ctx.database.get('answers', {
+            id: question.answerid
+        })
+
+        if(answer && answer.length > 0) {
+            await delFileByAnswer(answer[0].answer)
+        }
+
+        
+        await ctx.database.set('answers', {
             id: question.answerid
         }, {
             answer: a
@@ -615,7 +635,7 @@ export default function apply(ctx: Context, config: Config) {
         config.max_default,
       ];
       ctx
-        .command("roll [...args]", "roll 整数")
+        .command("ms/roll [...args]", "roll 整数")
         .alias('roll点')
         .usage("rd [[l] [r]] [num=1]（包含左右边界）")
         .action(async ({ session }, ...args) => {

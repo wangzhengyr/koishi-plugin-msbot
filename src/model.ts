@@ -212,26 +212,11 @@ export async function delQestionsByQuestion(q: string, answerId: number, userId:
         let answer = await getAnswerById(answerId, ctx)
         
 
-        // 使用正则表达式匹配文件路径
-        const filePathRegex = /file:\/\/(.+?)(?=")/g;
-        const matches = answer.answer.match(filePathRegex)
-        if(matches) {
-            for (const match of matches) {
-                const filePath = match.replace("file://", "");
-                // 删除文件
-                fs.unlink(filePath, (err) => {
-                  if (err) {
-                    logger.info(`删除文件 ${filePath} 失败:`, err)
-                  } else {
-                    logger.info(`文件 ${filePath} 删除成功`)
-                  }
-                })
-              }
-        }
+        await delFileByAnswer(answer.answer)
 
 
 
-        ctx.database.remove('answers', { 
+        await ctx.database.remove('answers', { 
             id: answerId,
         })
 
@@ -357,6 +342,39 @@ export async function addNews(data: newData, ctx: Context) {
         return ctx.database.create('newData', data)
     }
 
+}
 
+export function delFileByAnswer(answer: string) {
+    // 使用正则表达式匹配文件路径
+    const filePathRegex = /file:\/\/(.+?)(?=")/g;
+    const matches = answer.match(filePathRegex)
+    if (matches) {
+        // 创建一个 Promise 数组，用于保存每个删除操作的结果
+        const promises = matches.map(match => {
+            const filePath = match.replace("file://", "");
+            // 返回一个 Promise，表示删除文件的异步操作
+            return new Promise((resolve, reject) => {
+                fs.unlink(filePath, (err) => {
+                    if (err) {
+                        console.error(`删除文件 ${filePath} 失败:`, err)
+                        resolve(false); // 删除失败时，将结果设置为 false
+                    } else {
+                        console.log(`文件 ${filePath} 删除成功`);
+                        resolve(true); // 删除成功时，将结果设置为 true
+                    }
+                });
+            });
+        });
 
+        // 使用 Promise.all 等待所有删除操作完成
+        return Promise.all(promises).then(results => {
+            // 如果所有文件都删除成功，则返回 true，否则返回 false
+            return results.every(result => result === true);
+        }).catch(err => {
+            console.error("删除文件出错:", err);
+            return false;
+        });
+    }
+
+    return Promise.resolve(false); // 没有匹配到文件路径时，直接返回 false
 }
