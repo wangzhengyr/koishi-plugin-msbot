@@ -622,7 +622,7 @@ export default function apply(ctx: Context, config: Config) {
 
         try {
             let characterData = await getCharacterData(name, page, session)
-            let xishu = 0.7
+            let xishu = config.xishu
             if(config.names.includes(name.toLowerCase())) {
 
 

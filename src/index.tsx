@@ -25,7 +25,8 @@ export interface Config {
   min_default: number,
   max_default: number,
   groupSendMsg: string[],
-  names: string[]
+  names: string[],
+  xishu: number
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -47,6 +48,7 @@ export const Config: Schema<Config> = Schema.intersect([
   }).description('roll点相关配置'),
   Schema.object({
     names: Schema.array(String).description('角色名配置'),
+    xishu: Schema.number().default(0.7).description('xishu'),
   }).description('角色名配置'),
 ])
 
