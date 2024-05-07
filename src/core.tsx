@@ -621,7 +621,21 @@ export default function apply(ctx: Context, config: Config) {
         // const browser = ctx.puppeteer.browser
 
         try {
-            const characterData = await getCharacterData(name, page, session)
+            let characterData = await getCharacterData(name, page, session)
+            let xishu = 0.7
+            if(config.names.includes(name.toLowerCase())) {
+
+
+                let regex = /[+-]?\d+(\.\d+)?/g;
+                characterData.avg_exp_14 = characterData.avg_exp_14.replace(regex, match => (parseFloat(match) * xishu).toFixed(2));
+                
+
+                characterData.avg_exp_7  = characterData.avg_exp_7.replace(regex, match => (parseFloat(match) * xishu).toFixed(2));
+                characterData.total_exp_14  = characterData.total_exp_14.replace(regex, match => (parseFloat(match) * xishu).toFixed(2));
+                characterData.total_exp_7  = characterData.total_exp_7.replace(regex, match => (parseFloat(match) * xishu).toFixed(2));
+                characterData.chart = characterData.chart.map(e => e * xishu)
+
+            }
 
             if(characterData == null) return '角色不存在'
     

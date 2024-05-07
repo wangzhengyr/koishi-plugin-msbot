@@ -24,7 +24,8 @@ export interface Config {
   groupDailyNews: string[],
   min_default: number,
   max_default: number,
-  groupSendMsg: string[]
+  groupSendMsg: string[],
+  names: string[]
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -44,6 +45,9 @@ export const Config: Schema<Config> = Schema.intersect([
     min_default: Schema.number().default(1).description("整数默认最小值"),
     max_default: Schema.number().default(100).description("整数默认最大值（含）"),
   }).description('roll点相关配置'),
+  Schema.object({
+    names: Schema.array(String).description('角色名配置'),
+  }).description('角色名配置'),
 ])
 
 
