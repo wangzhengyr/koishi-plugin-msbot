@@ -582,16 +582,15 @@ export default function apply(ctx: Context, config: Config) {
                 newDatav2.isOverHight = data.isOverHight
 
                 await ctx.database.create('newDatav2', newDatav2)
-                let msg = <>
-                    <img src={dataURI}/><br/>
-                    <text content={'官网有新消息：'} /><br/>
-                    <text content={`标题：${newDatav2.name}`} /><br/>
-                    <text content={`原文：${newDatav2.summary}`} /><br/>
-                    <a href={newContentUrl} >链接：</a><br/>
-                    {data.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
-                    </>
-                await (ctx as any).broadcast([...config.goroupLastNew], msg)
-
+                // let msg = <>
+                //     <img src={dataURI}/><br/>
+                //     <text content={'官网有新消息：'} /><br/>
+                //     <text content={`标题：${newDatav2.name}`} /><br/>
+                //     <text content={`原文：${newDatav2.summary}`} /><br/>
+                //     <a href={newContentUrl} >链接：</a><br/>
+                //     {data.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
+                //     </>
+                // return msg
                 // await addNews(newData, ctx)
             } catch (error) {
                 page.close()
