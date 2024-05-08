@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-msbot",
   "description": "国际服冒险岛查询机器人",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "contributors": [
     "Leslee <wangzhengyr@gmail.com>"
   ],
