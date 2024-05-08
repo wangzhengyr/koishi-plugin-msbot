@@ -458,6 +458,7 @@ export default function apply(ctx: Context, config: Config) {
     .option('maintenance', '-m 维护公告')
     .option('general', '-g 一般公告')
     .option('community', '-c 社区公告')
+    .option('update', '-u 更新公告')
     .action(async ({session, options}) => {
         let map = {
             'events': '活动公告',
@@ -465,6 +466,7 @@ export default function apply(ctx: Context, config: Config) {
             'maintenance': '维护公告',
             'general': '一般公告',
             'community': '社区公告',
+            'update': '更新公告',
             'new': '最新公告'
         
         }
@@ -476,6 +478,7 @@ export default function apply(ctx: Context, config: Config) {
         if(options.maintenance) type = 'maintenance'
         if(options.general) type = 'general'
         if(options.community) type = 'community'
+        if(options.update) type = 'update'
         let newDatas: newDatav2[] = []
         let newDatav2: newDatav2
 
