@@ -609,8 +609,8 @@ export default function apply(ctx: Context, config: Config) {
             name = info[0].name
         }
 
-        const url = `https://api.maplestory.gg/v2/public/character/gms/${name}`
-
+        // const url = `https://api.maplestory.gg/v2/public/character/gms/${name}`
+        const url = `https://mapleranks.com/u/${name}`
         try {
             await ctx.http.get(url)
         } catch (error) {
