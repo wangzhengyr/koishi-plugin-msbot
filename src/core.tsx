@@ -1,10 +1,10 @@
 import { Context, noop, Logger, h, Session } from 'koishi'
 import { v4 as uuidv4 } from 'uuid';
-import { getQuestionByquestion,getQAndAByQestion, addQuestion, buildAnswer, buildQuestion, addQestuinAndAnswer, getQuestionsByAnswerId, getQuestionsByKey, getAnswerBykey, delQestionsByQuestion, getLastNews, getAllNewMessage, addNews} from './model';
+import { getQuestionByquestion,getQAndAByQestion, addQuestion, buildAnswer, buildQuestion, addQestuinAndAnswer, getQuestionsByAnswerId, getQuestionsByKey, getAnswerBykey, delQestionsByQuestion, getLastNewsV2} from './model';
 import { Config } from './index'
 import {} from 'koishi-plugin-adapter-onebot'
 import {} from 'koishi-plugin-puppeteer'
-import { newData, newMessage, characterData, gmsInfo, delFileByAnswer } from './model'
+import { newDatav2, characterData, gmsInfo, delFileByAnswer } from './model'
 import { Page } from 'puppeteer-core'
 import { resolve, dirname } from 'path'
 import fs from 'fs';
@@ -311,88 +311,29 @@ export default function apply(ctx: Context, config: Config) {
     })
 
 
-
     ctx.command('ms/lastnew', '获取官网最新公告')
     .action(async ({session}) => {
-        const page = await ctx.puppeteer.page()
-        page.setViewport({
-            width: 1800,
-            height: 1532
-        })
-        const url = `https://maplestory.nexon.net/news`
+        const apiUrl = "https://g.nexonstatic.com/maplestory/cms/v1/news"
+        let newData : newDatav2
         try {
-            await page.goto(url, {
-                waitUntil: 'networkidle0',
-                timeout: 30000,
-            })
+            let news = await ctx.http.get<newDatav2[]>(apiUrl)
+            newData = news[0]
+           
         } catch (error) {
-            page.close()
+
             logger.error(error)
-            logger.error('新闻-打开主页异常。')
-            session.send('新闻-打开主页异常。')
+            logger.error('新闻-请求api异常。')
+            session.send('新闻-请求api异常。')
         }
-        let newData: newData
-        let newDataId
-        try {
-            newData = await page.evaluate(() => {
-
-                const list: newData[] = [];
-                const element = document.querySelector('li.news-item[data-equalizer=""]')
-                const type = element?.querySelector('div.label')?.innerHTML
-                const title = element?.querySelectorAll('a')[1]?.innerText
-                let str = element?.querySelectorAll('a')[1]?.href
-                const url = str.substring(0,str.lastIndexOf('/'))
-                const content = element?.querySelector('p')?.innerText
-
-                return {
-                    type,
-                    title,
-                    url,
-                    content,
-                    isNew: true
-                }
-
-                // document.querySelectorAll('li.news-item[data-equalizer=""]').forEach((element, index) => {
-                //     const type = element?.querySelector('div.label')?.innerHTML
-                //     const title = element?.querySelectorAll('a')[1]?.innerText
-                //     let str = element?.querySelectorAll('a')[1]?.href
-                //     const url = str.substring(0,str.lastIndexOf('/'))
-                //     const content = element?.querySelector('p')?.innerText
-                //     // list.push({
-                //     //     id:index + 1,
-                //     //     type,
-                //     //     title,
-                //     //     url,
-                //     //     content
-                //     // })
-                // })
-                // return list
-            })
-        } catch (error) {
-            page.close()
-            logger.error(error)
-            logger.error('新闻-无法获取最新公告。')
-            session.send('新闻-无法获取最新公告。')
-        }
-        
-
-        try {
-        // logger.info(newsData)
-        // 去数据库比较是否有最新的新闻，并把这些入库
-        newDataId = await getLastNews(newData, ctx)
-        logger.info(newData)
-        } catch (error) {
-            page.close()
-            logger.error(error)
-            logger.error('新闻-数据库操作异常。')
-            session.send('新闻-数据库操作异常。')
-            return
-        }
-
-        if(newDataId) {
+        let flag = await getLastNewsV2(newData, ctx)
+        if(flag === 1) {
             logger.info('检测到有新公告')
-            const newContentUrl = newData.url
-
+            const newContentUrl = `https://www.nexon.com/maplestory/news/${newData.category}/${newData.id}`
+            const page = await ctx.puppeteer.page()
+            page.setViewport({
+                width: 1800,
+                height: 1532
+            })
             try {
                 await page.goto(newContentUrl, {
                     waitUntil: 'networkidle0',
@@ -407,19 +348,19 @@ export default function apply(ctx: Context, config: Config) {
             let imageBuffer
             let data
             try {
-                let content = await page.$('div.component.component-news-article')
+                let content = await page.$('div.card.v1')
                 data = await content.evaluate(() => {
                     const MAXHIGHT = 15000
                     let isOverHight = false
+                    document.querySelector('header').remove()
+                    document.querySelector('div[data-section-name="Contents Header"]').remove()
                     document.querySelector('#onetrust-banner-sdk').remove()
-                    document.querySelector('.global-header').remove()
-                    document.querySelector('#gnt').remove();
-                    let hight = (document.querySelector('div.component.component-news-article') as HTMLElement).offsetHeight
+                    let hight = (document.querySelector('div.card.v1') as HTMLElement).offsetHeight
                     if(hight > MAXHIGHT) {
                         isOverHight = true;
-                        (document.querySelector('div.component.component-news-article') as HTMLElement).style.height = MAXHIGHT + 'px'
+                        (document.querySelector('div.card.v1') as HTMLElement).style.height = MAXHIGHT + 'px'
+                        hight = MAXHIGHT
                     }
-                    hight = (document.querySelector('div.component.component-news-article') as HTMLElement).offsetHeight
 
                     return {
                         hight,
@@ -428,6 +369,7 @@ export default function apply(ctx: Context, config: Config) {
                 })
                 logger.info("链接：" + newContentUrl)
                 logger.info("页面高度：" + data.hight)
+                
                 imageBuffer = await content.screenshot({})
             } catch (error) {
                 page.close()
@@ -453,43 +395,45 @@ export default function apply(ctx: Context, config: Config) {
                 
 
                 await fs.promises.writeFile(filepath, Buffer.from(imageBuffer))
-                // await saveImageToFile(imageBuffer, filepath);
                 logger.info('保存完成：' + filepath)
 
-                newData.imgbase64 = "file://" + filepath
-                newData.isOverHight = data.isOverHight
-                await ctx.database.set('newData', {
-                    id: newDataId
-                },newData)
+                // newData.imgbase64 = "file://" + filepath
+                // newData.isOverHight = data.isOverHight
+                await ctx.database.set('newDatav2', {
+                    id: newData.id
+                },{
+                    imgbase64: "file://" + filepath,
+                    isOverHight: data.isOverHight
+                })
                 let msg = <>
                     <img src={dataURI}/><br/>
                     <text content={'官网有新消息：'} /><br/>
-                    <text content={`标题：${newData.title}`} /><br/>
-                    <text content={`原文：${newData.content}`} /><br/>
-                    <a href={newData.url} >链接：</a><br/>
+                    <text content={`标题：${newData.name}`} /><br/>
+                    <text content={`原文：${newData.summary}`} /><br/>
+                    <a href={newContentUrl} >链接：</a><br/>
                     {data.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
                     </>
                 await (ctx as any).broadcast([...config.goroupLastNew], msg)
 
-                await addNews(newData, ctx)
+                // await addNews(newData, ctx)
             } catch (error) {
                 page.close()
                 logger.error(error)
                 logger.error('新闻-发送新闻异常。')
                 session.send('新闻-发送新闻异常。')
             }
+            page.close()
 
         }else {
             logger.info('没有新公告')
-
         }
-
-        // 关闭浏览器
-        page.close()
-        return
         
-     
+        
+        return
+
     })
+
+
     ctx.command('ms/公告', '获取官方最新公告')
     .alias('官网', 'new')
     .option('event', '-e 活动公告')
@@ -499,47 +443,48 @@ export default function apply(ctx: Context, config: Config) {
     .option('community', '-c 社区公告')
     .action(async ({session, options}) => {
         let map = {
-            'EVENTS': '活动公告',
-            'SALE': '商城公告',
-            'MAINTENANCE': '维护公告',
-            'GENERAL': '一般公告',
-            'COMMUNITY': '社区公告',
-            'NEW': '最新公告'
+            'events': '活动公告',
+            'sale': '商城公告',
+            'maintenance': '维护公告',
+            'general': '一般公告',
+            'community': '社区公告',
+            'new': '最新公告'
         
         }
 
-        let type = 'NEW'
+        let type = 'new'
 
-        if(options.event) type = 'EVENTS'
-        if(options.sale) type = 'SALE'
-        if(options.maintenance) type = 'MAINTENANCE'
-        if(options.general) type = 'GENERAL'
-        if(options.community) type = 'COMMUNITY'
-        let newDatas
-        if(type != 'NEW') {
+        if(options.event) type = 'events'
+        if(options.sale) type = 'sale'
+        if(options.maintenance) type = 'maintenance'
+        if(options.general) type = 'general'
+        if(options.community) type = 'community'
+        let newDatas: newDatav2[] = []
+        if(type != 'new') {
     
-            newDatas = await ctx.database.get('newData', {
-                type,
-                isNew: false
+            newDatas = await ctx.database.get('newDatav2', {
+                category: type
             })
 
         }else {
-            newDatas = await ctx.database.get('newData', {
+            newDatas = await ctx.database.get('newDatav2', {
                 isNew: true
             })
         }
+        
 
         if(newDatas.length === 0) {
             return `暂无${map[type]}`
         }
-        type = newDatas[0].type
+        type = newDatas[0].category
+        const url = `https://www.nexon.com/maplestory/news/${newDatas[0].category}/${newDatas[0].id}`
 
         let msg = <>
         <img src={newDatas[0].imgbase64}/><br/>
         <text content={ map[type] } /><br/>
-        <text content={`标题：${newDatas[0].title}`} /><br/>
-        <text content={`原文：${newDatas[0].content}`} /><br/>
-        <a href={newDatas[0].url} >链接：</a><br/>
+        <text content={`标题：${newDatas[0].name}`} /><br/>
+        <text content={`原文：${newDatas[0].summary}`} /><br/>
+        <a href={url} >链接：</a><br/>
         {newDatas[0].isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
         </>
         return msg

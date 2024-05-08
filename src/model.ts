@@ -12,8 +12,7 @@ declare module 'koishi' {
     interface Tables {
       questions: Question
       answers: Answer,
-      newData: newData,
-      newMessage: newMessage,
+      newDatav2: newDatav2,
       gmsInfo: gmsInfo
     }
 }
@@ -59,19 +58,16 @@ export interface characterData {
 
 
 
-export interface newMessage extends newData{
-    id?: number,
-    imgbase64: string,
-    isOverHight: boolean
-}
-
-export interface newData {
-    id?: number,
-    type: string,
-    title: string,
-    url: string,
-    content: string,
-    isNew: boolean,
+export interface newDatav2 {
+    id: number,
+    category: string,
+    featured: boolean,
+    imageThumbnail: string,
+    liveDate: Date,
+    name: string,
+    summary: string,
+    nid: number,
+    isNew?: boolean,
     imgbase64?: string,
     isOverHight?: boolean
 }
@@ -117,33 +113,22 @@ export default function apply(ctx: Context, config: Config) {
     })
 
 
-    ctx.model.extend('newData', {
+
+    ctx.model.extend('newDatav2', {
         id: 'unsigned',
-        type: 'string',
-        title: 'string',
-        url: 'string',
-        content: 'text',
+        category: 'string',
+        featured: 'boolean',
+        imageThumbnail: 'string',
+        liveDate: 'date',
+        name: 'string',
+        summary: 'string',
         isNew: 'boolean',
         imgbase64: 'text',
         isOverHight: 'boolean'
     }, {
         primary: 'id',
-        autoInc: true,
     })
 
-    ctx.model.extend('newMessage', {
-        id: 'unsigned',
-        type: 'string',
-        title: 'string',
-        url: 'string',
-        content: 'text',
-        imgbase64: 'text',
-        isOverHight: 'boolean'
-        
-    }, {
-        primary: 'id',
-        autoInc: true,
-    })
 
     ctx.model.extend('gmsInfo', {
         id: 'unsigned',
@@ -287,64 +272,55 @@ export function buildAnswer(answer: string):Answer {
 
 
 // newData相关sql
-export function createNewData(data: newData, ctx: Context) {
-    return ctx.database.create('newData', data)
-}
-
-export function getAllNewData(ctx: Context): Promise<newData[]> {
-    return ctx.database.get('newData',{
-        isNew: true
-    })
-}
-
-export function getAllNewMessage(ctx: Context): Promise<newMessage[]> {
-    return ctx.database.get('newMessage',{})
-}
-
-export async function createNewMessage(datas: newMessage[], ctx: Context) {
-    await ctx.database.remove('newMessage',{})
-    return ctx.database.upsert('newMessage', (row) => datas)
-}
 
 
-export async function getLastNews(data: newData, ctx: Context) {
 
-    let newDatas = await ctx.database.get('newData',{
+export async function getLastNewsV2(data: newDatav2, ctx: Context) {
+    let newDatas = await ctx.database.get('newDatav2',{
         isNew: true,
+        id: data.id
     })
 
-    if(newDatas.length > 0) {
-        if(newDatas[0].url !== data.url) {
-            await ctx.database.set('newData', {
-                id: newDatas[0].id
-            }, data)
-            return newDatas[0].id
+    // 说明是新的
+    if(newDatas.length === 0) {
+
+        let oldNews = await ctx.database.get('newDatav2', {
+            isNew: true
+        })
+
+        if(oldNews && oldNews.length > 0) {
+            let oldNew = oldNews[0]
+            oldNew.isNew = false
+
+            if(oldNew.category === data.category) {
+                await ctx.database.remove('newDatav2', {
+                    id: oldNew.id
+                })
+            }else {
+                await ctx.database.set('newDatav2', {
+                    id: oldNew.id
+                }, {
+                    isNew: false
+                })
+                await ctx.database.remove('newDatav2', {
+                    id: {$ne : oldNew.id},
+                    category: oldNew.category
+                })
+            }
+
+
         }
-        return null
-    }else {
-        data = await ctx.database.create('newData', data)
-        return data.id
+
+        data.isNew = true
+        await ctx.database.create('newDatav2', data)
+        return 1
     }
-    
+    return 0
 }
 
 
-export async function addNews(data: newData, ctx: Context) {
-    data.isNew = false
-    // 如果数据库有数据则更新，没有则新增,条件为type
-    let newDatas = await ctx.database.get('newData', {
-        type: data.type,
-        isNew: false
-    })
-    if(newDatas.length > 0) {
-        return ctx.database.set('newData', {
-            id: newDatas[0].id
-        }, data)
-    }else {
-        return ctx.database.create('newData', data)
-    }
 
-}
+
 
 export function delFileByAnswer(answer: string) {
     // 使用正则表达式匹配文件路径
