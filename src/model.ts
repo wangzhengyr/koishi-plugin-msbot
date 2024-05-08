@@ -311,6 +311,20 @@ export async function getLastNewsV2(data: newDatav2, ctx: Context) {
 
         }
 
+        let news = await ctx.database.get('newDatav2', {
+            id: data.id
+        })
+
+        if(news && news.length > 0) {
+            await ctx.database.set('newDatav2', {
+                id: data.id
+            }, {
+                isNew: true
+            })
+            return 2
+        }
+
+
         data.isNew = true
         await ctx.database.create('newDatav2', data)
         return 1

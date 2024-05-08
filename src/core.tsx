@@ -424,6 +424,23 @@ export default function apply(ctx: Context, config: Config) {
             }
             page.close()
 
+        }else if(flag === 2) {
+            let newDatas = await ctx.database.get('newDatav2', {
+                isNew: true
+            })
+            let newDatav2 = newDatas[0]
+            const url = `https://www.nexon.com/maplestory/news/${newDatav2.category}/${newDatav2.id}`
+
+            let msg = <>
+            <img src={newDatav2.imgbase64}/><br/>
+            <text content={'官网有新消息：'} /><br/>
+            <text content={`标题：${newDatav2.name}`} /><br/>
+            <text content={`原文：${newDatav2.summary}`} /><br/>
+            <a href={url} >链接：</a><br/>
+            {newDatav2.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
+            </>
+            await (ctx as any).broadcast([...config.goroupLastNew], msg)
+
         }else {
             logger.info('没有新公告')
         }
@@ -460,11 +477,15 @@ export default function apply(ctx: Context, config: Config) {
         if(options.general) type = 'general'
         if(options.community) type = 'community'
         let newDatas: newDatav2[] = []
+        let newDatav2: newDatav2
+
+
         if(type != 'new') {
     
             newDatas = await ctx.database.get('newDatav2', {
                 category: type
             })
+            
 
         }else {
             newDatas = await ctx.database.get('newDatav2', {
@@ -472,20 +493,127 @@ export default function apply(ctx: Context, config: Config) {
             })
         }
         
-
         if(newDatas.length === 0) {
-            return `暂无${map[type]}`
+            
+            let api = "https://g.nexonstatic.com/maplestory/cms/v1/news"
+
+            let newDatav2s = await ctx.http.get<newDatav2[]>(api)
+            if(!newDatav2s || newDatav2s.length === 0) return `暂无${map[type]}公告`
+            
+            if(type === 'new') {
+                newDatav2  = newDatav2s[0]
+                newDatav2.isNew = true
+
+            }else {
+                newDatav2  = newDatav2s.filter(e => e.category === type)[0]
+                newDatav2.isNew = false
+
+            }
+            const newContentUrl = `https://www.nexon.com/maplestory/news/${newDatav2.category}/${newDatav2.id}`
+            const page = await ctx.puppeteer.page()
+            page.setViewport({
+                width: 1800,
+                height: 1532
+            })
+            try {
+                await page.goto(newContentUrl, {
+                    waitUntil: 'networkidle0',
+                    timeout: 30000,
+                })
+            } catch (error) {
+                page.close()
+                logger.error(error)
+                logger.error('新闻-打开详情页异常。')
+                session.send('新闻-打开详情页异常。')
+            }
+            let imageBuffer
+            let data
+            try {
+                let content = await page.$('div.card.v1')
+                data = await content.evaluate(() => {
+                    const MAXHIGHT = 15000
+                    let isOverHight = false
+                    document.querySelector('header').remove()
+                    document.querySelector('div[data-section-name="Contents Header"]').remove()
+                    document.querySelector('#onetrust-banner-sdk').remove()
+                    let hight = (document.querySelector('div.card.v1') as HTMLElement).offsetHeight
+                    if(hight > MAXHIGHT) {
+                        isOverHight = true;
+                        (document.querySelector('div.card.v1') as HTMLElement).style.height = MAXHIGHT + 'px'
+                        hight = MAXHIGHT
+                    }
+
+                    return {
+                        hight,
+                        isOverHight
+                    }
+                })
+                logger.info("链接：" + newContentUrl)
+                logger.info("页面高度：" + data.hight)
+                
+                imageBuffer = await content.screenshot({})
+            } catch (error) {
+                page.close()
+                logger.error(error)
+                logger.error('新闻-详情页截图异常。')
+                session.send('新闻-详情页截图异常。')
+            }
+
+            try {
+                logger.info(imageBuffer.byteLength)
+                //将图像缓冲区转换为 Base64 编码的字符串
+                const base64Image = imageBuffer.toString('base64')
+    
+                // 创建数据 URI
+                const dataURI = `data:image/png;base64,${base64Image}`
+
+                const filename = `${uuidv4()}.png`;
+                const filepath = resolve(process.cwd(), 'data', 'locales', 'news', filename);
+                const dir = dirname(filepath);
+                if (!fs.existsSync(dir)) {
+                    fs.mkdirSync(dir, { recursive: true });
+                }
+                
+
+                await fs.promises.writeFile(filepath, Buffer.from(imageBuffer))
+                logger.info('保存完成：' + filepath)
+
+                newDatav2.imgbase64 = "file://" + filepath
+                newDatav2.isOverHight = data.isOverHight
+
+                await ctx.database.create('newDatav2', newDatav2)
+                let msg = <>
+                    <img src={dataURI}/><br/>
+                    <text content={'官网有新消息：'} /><br/>
+                    <text content={`标题：${newDatav2.name}`} /><br/>
+                    <text content={`原文：${newDatav2.summary}`} /><br/>
+                    <a href={newContentUrl} >链接：</a><br/>
+                    {data.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
+                    </>
+                await (ctx as any).broadcast([...config.goroupLastNew], msg)
+
+                // await addNews(newData, ctx)
+            } catch (error) {
+                page.close()
+                logger.error(error)
+                logger.error('新闻-发送新闻异常。')
+                session.send('新闻-发送新闻异常。')
+            }
+            page.close()
+            
+        }else {
+            newDatav2 = newDatas[0]
         }
-        type = newDatas[0].category
-        const url = `https://www.nexon.com/maplestory/news/${newDatas[0].category}/${newDatas[0].id}`
+        type = newDatav2.category
+        const url = `https://www.nexon.com/maplestory/news/${newDatav2.category}/${newDatav2.id}`
 
         let msg = <>
-        <img src={newDatas[0].imgbase64}/><br/>
+        <img src={newDatav2.imgbase64}/><br/>
         <text content={ map[type] } /><br/>
-        <text content={`标题：${newDatas[0].name}`} /><br/>
-        <text content={`原文：${newDatas[0].summary}`} /><br/>
+        <text content={`标题：${newDatav2.name}`} /><br/>
+        <text content={`原文：${newDatav2.summary}`} /><br/>
         <a href={url} >链接：</a><br/>
-        {newDatas[0].isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
+        {newDatav2.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
         </>
         return msg
         
