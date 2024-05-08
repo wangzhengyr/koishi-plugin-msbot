@@ -408,6 +408,7 @@ export default function apply(ctx: Context, config: Config) {
                 let msg = <>
                     <img src={dataURI}/><br/>
                     <text content={'官网有新消息：'} /><br/>
+                    <text content={`时间：${newData.liveDate.toLocaleString()}`} /><br/>
                     <text content={`标题：${newData.name}`} /><br/>
                     <text content={`原文：${newData.summary}`} /><br/>
                     <a href={newContentUrl} >链接：</a><br/>
@@ -482,6 +483,7 @@ export default function apply(ctx: Context, config: Config) {
         let msg = <>
         <img src={newDatas[0].imgbase64}/><br/>
         <text content={ map[type] } /><br/>
+        <text content={`时间：${newDatas[0].liveDate.toLocaleString()}`} /><br/>
         <text content={`标题：${newDatas[0].name}`} /><br/>
         <text content={`原文：${newDatas[0].summary}`} /><br/>
         <a href={url} >链接：</a><br/>
