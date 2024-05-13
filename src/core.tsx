@@ -999,7 +999,15 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
                 const str = legion_power_value.replace(/,/g, '');
                 // 转换为数字
                 const e = parseInt(str);
-                legion_power = numberToUnitString(e)
+                legion_power = 999 < e && e < 1e6
+                    ? Number((e / 1e3).toFixed(1)) + "K"
+                    : 1e6 <= e && e < 1e9
+                    ? Number((e / 1e6).toFixed(2)) + "M"
+                    : 1e9 <= e && e < 1e12
+                    ? Number((e / 1e9).toFixed(2)) + "B"
+                    : 1e12 <= e && e < 1e15
+                    ? Number((e / 1e12).toFixed(2)) + "T"
+                    : "" + e;
             }
             
             
