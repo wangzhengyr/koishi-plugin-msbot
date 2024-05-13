@@ -983,8 +983,8 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
 
             const name = document.querySelector('h3')?.innerText
             const lv = document.querySelector('h5')?.innerText
-            let job = document.querySelector('p')?.innerText?.split(' ')[0]?.trim()
-            let server = document.querySelector('p')?.innerText?.split(' ')[2]?.trim() + ' ' + document.querySelector('p')?.innerText?.split(' ')[3]?.trim()
+            let job = document.querySelector('p')?.innerText?.split('in ')[0]?.trim()
+            let server = document.querySelector('p')?.innerText?.split('in ')[1]?.trim()
             const rankInKOnJob = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[0]?.children[0]?.children[0] as HTMLElement)?.innerText
             const rankInK = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[0]?.children[1]?.children[0] as HTMLElement)?.innerText
             const rankInROnJob = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[0]?.children[2]?.children[0] as HTMLElement)?.innerText
