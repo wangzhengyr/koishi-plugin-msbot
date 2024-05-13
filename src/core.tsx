@@ -983,8 +983,8 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
 
             const name = document.querySelector('h3')?.innerText
             const lv = document.querySelector('h5')?.innerText
-            let job = document.querySelector('p')?.innerText.split('in')[0].trim()
-            let server = document.querySelector('p')?.innerText.split('in')[1]
+            let job = document.querySelector('p')?.innerText?.split(' ')[0]?.trim()
+            let server = document.querySelector('p')?.innerText?.split(' ')[2]?.trim() + ' ' + document.querySelector('p')?.innerText?.split(' ')[3]?.trim()
             const rankInKOnJob = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[0]?.children[0]?.children[0] as HTMLElement)?.innerText
             const rankInK = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[0]?.children[1]?.children[0] as HTMLElement)?.innerText
             const rankInROnJob = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[0]?.children[2]?.children[0] as HTMLElement)?.innerText
@@ -999,15 +999,7 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
                 const str = legion_power_value.replace(/,/g, '');
                 // 转换为数字
                 const e = parseInt(str);
-                legion_power = 999 < e && e < 1e6
-                    ? Number((e / 1e3).toFixed(1)) + "K"
-                    : 1e6 <= e && e < 1e9
-                        ? Number((e / 1e6).toFixed(2)) + "M"
-                        : 1e9 <= e && e < 1e12
-                            ? Number((e / 1e9).toFixed(2)) + "B"
-                            : 1e12 <= e && e < 1e15
-                                ? Number((e / 1e12).toFixed(2)) + "T"
-                                : "" + e;
+                legion_power = numberToUnitString(e)
             }
             
             
