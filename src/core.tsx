@@ -702,12 +702,17 @@ export default function apply(ctx: Context, config: Config) {
 
 
                 let regex = /[+-]?\d+(\.\d+)?/g;
-                characterData.avg_exp_14 = characterData.avg_exp_14.replace(regex, match => (parseFloat(match) * xishu).toFixed(2));
-                
+                // characterData.avg_exp_14 = characterData.avg_exp_14.replace(regex, match => (parseFloat(match) * xishu).toFixed(2));
+                // characterData.avg_exp_7  = characterData.avg_exp_7.replace(regex, match => (parseFloat(match) * xishu).toFixed(2));
+                // characterData.total_exp_14  = characterData.total_exp_14.replace(regex, match => (parseFloat(match) * xishu).toFixed(2));
+                // characterData.total_exp_7  = characterData.total_exp_7.replace(regex, match => (parseFloat(match) * xishu).toFixed(2));
+                characterData.avg_exp_14 = numberToUnitString( parseNumberFromString(characterData.avg_exp_14) * xishu)
+                characterData.avg_exp_7 = numberToUnitString( parseNumberFromString(characterData.avg_exp_7) * xishu)
+                characterData.total_exp_14 = numberToUnitString( parseNumberFromString(characterData.total_exp_14) * xishu)
+                characterData.total_exp_7 = numberToUnitString( parseNumberFromString(characterData.total_exp_7) * xishu)
 
-                characterData.avg_exp_7  = characterData.avg_exp_7.replace(regex, match => (parseFloat(match) * xishu).toFixed(2));
-                characterData.total_exp_14  = characterData.total_exp_14.replace(regex, match => (parseFloat(match) * xishu).toFixed(2));
-                characterData.total_exp_7  = characterData.total_exp_7.replace(regex, match => (parseFloat(match) * xishu).toFixed(2));
+                
+                
                 characterData.chart = characterData.chart.map(e => e * xishu)
 
             }
@@ -1099,15 +1104,7 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
         if(labels) labels = labels.join(', ')
         chart_unit = characterData.chart.map(e => {
 
-            return 999 < e && e < 1e6
-                                ? Number((e / 1e3).toFixed(1)) + "K"
-                                : 1e6 <= e && e < 1e9
-                                ? Number((e / 1e6).toFixed(2)) + "M"
-                                : 1e9 <= e && e < 1e12
-                                ? Number((e / 1e9).toFixed(2)) + "B"
-                                : 1e12 <= e && e < 1e15
-                                ? Number((e / 1e12).toFixed(2)) + "T"
-                                : "" + e;
+            return numberToUnitString(e)
             
                 
             })
@@ -1769,4 +1766,31 @@ async function bindGms(ctx: Context, name: string, userId: string) {
 function rd(min: number, max: number): number {
     if (min > max) [min, max] = [max, min];
     return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function parseNumberFromString(str: string) {
+    const suffixes = { K: 1e3, M: 1e6, B: 1e9, T: 1e12 };
+    const matches = str.match(/^(\d*\.?\d*)([KMBT])$/);
+
+    if (matches) {
+        const value = parseFloat(matches[1]);
+        const suffix = matches[2];
+        if (suffixes.hasOwnProperty(suffix)) {
+            return value * suffixes[suffix];
+        }
+    }
+    
+    // 如果字符串没有后缀，则直接解析为数字
+    return parseFloat(str);
+}
+function numberToUnitString(e: number) {
+    return 999 < e && e < 1e6
+        ? Number((e / 1e3).toFixed(1)) + "K"
+        : 1e6 <= e && e < 1e9
+        ? Number((e / 1e6).toFixed(2)) + "M"
+        : 1e9 <= e && e < 1e12
+        ? Number((e / 1e9).toFixed(2)) + "B"
+        : 1e12 <= e && e < 1e15
+        ? Number((e / 1e12).toFixed(2)) + "T"
+        : "" + e;
 }
