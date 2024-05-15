@@ -306,8 +306,10 @@ export async function getLastNewsV2(data: newDatav2, ctx: Context) {
                     id: {$ne : oldNew.id},
                     category: oldNew.category
                 })
+                await ctx.database.remove('newDatav2', {
+                    category: data.category
+                })
             }
-
 
         }
 
