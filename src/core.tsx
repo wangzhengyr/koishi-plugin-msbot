@@ -1,4 +1,4 @@
-import { Context, noop, Logger, h, Session } from 'koishi'
+import { Context, noop, Logger, h, Session, Bot } from 'koishi'
 import { v4 as uuidv4 } from 'uuid';
 import { getQuestionByquestion,getQAndAByQestion, addQuestion, buildAnswer, buildQuestion, addQestuinAndAnswer, getQuestionsByAnswerId, getQuestionsByKey, getAnswerBykey, delQestionsByQuestion, getLastNewsV2} from './model';
 import { Config } from './index'
@@ -34,6 +34,24 @@ export default function apply(ctx: Context, config: Config) {
 
 
 
+
+    ctx.server.post('/tempMvp', async (c, next) => {
+        
+        let url =  c.request.body.url;
+        // ctx.broadcast([...config.groupMvp], h.image(url))
+        // await (ctx as any).broadcast([...config.groupMvp], h.image(url))
+        ctx.bots.forEach((e: Bot) => {
+            e.sendMessage("724117869", h.image(url))
+            e.sendMessage("320449295", h.image(url))
+            e.sendMessage("894568698", h.image(url))
+
+        c.body = {
+            code: 200,
+            msg: 'success'
+        }
+        return c
+    })
+
     ctx.server.post('/msg', async (c, next) => {
         let url =  c.request.body?.url;
         let text =  c.request.body?.text;
@@ -47,7 +65,13 @@ export default function apply(ctx: Context, config: Config) {
 
         }
 
-        await (ctx as any).broadcast([...config.groupSendMsg], msg)
+
+        // let bot = ctx.bots["onebot:2127097569"]
+        // bot.broadcast(["585681900"], msg)
+        // // await (ctx as any).broadcast([...config.groupSendMsg], msg)
+        await ctx.broadcast([...config.groupMvp], msg)
+
+        });
 
 
         c.body = {
@@ -61,7 +85,8 @@ export default function apply(ctx: Context, config: Config) {
     ctx.server.post('/mvp', async (c, next) => {
         let url =  c.request.body.url;
         // ctx.broadcast([...config.groupMvp], h.image(url))
-        await (ctx as any).broadcast([...config.groupMvp], h.image(url))
+        // await (ctx as any).broadcast([...config.groupMvp], h.image(url))
+        await ctx.broadcast([...config.groupMvp], h.image(url))
 
         c.body = {
             code: 200,
@@ -73,7 +98,9 @@ export default function apply(ctx: Context, config: Config) {
     ctx.server.post('/mvp2', async (c, next) => {
         let url =  c.request.body.url
         // ctx.broadcast([...config.groupMvp2], h.image(url))
-        await (ctx as any).broadcast([...config.groupMvp2], h.image(url))
+        // await (ctx as any).broadcast([...config.groupMvp2], h.image(url))
+        await ctx.broadcast([...config.groupMvp2], h.image(url))
+
         c.body = {
             code: 200,
             msg: 'success'

@@ -18,6 +18,7 @@ declare module 'koishi' {
 }
 
 export interface gmsInfo {
+    id?: number,
     userId: string,
     name: string
 }

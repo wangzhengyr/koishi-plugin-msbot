@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-msbot",
   "description": "国际服冒险岛查询机器人",
-  "version": "1.3.7",
+  "version": "1.3.8",
   "contributors": [
     "Leslee <wangzhengyr@gmail.com>"
   ],
@@ -23,6 +23,6 @@
     "maplestory"
   ],
   "peerDependencies": {
-    "koishi": "^4.17.3"
+    "koishi": "^4.17.9"
   }
 }
