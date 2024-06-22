@@ -44,7 +44,8 @@ export default function apply(ctx: Context, config: Config) {
             e.sendMessage("724117869", h.image(url))
             e.sendMessage("320449295", h.image(url))
             e.sendMessage("894568698", h.image(url))
-
+        
+        })
         c.body = {
             code: 200,
             msg: 'success'
@@ -71,7 +72,6 @@ export default function apply(ctx: Context, config: Config) {
         // // await (ctx as any).broadcast([...config.groupSendMsg], msg)
         await ctx.broadcast([...config.groupMvp], msg)
 
-        });
 
 
         c.body = {
