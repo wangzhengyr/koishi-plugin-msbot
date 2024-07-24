@@ -38,7 +38,7 @@ export default function apply(ctx: Context, config: Config) {
     ctx.server.post('/tempMvp', async (c, next) => {
         
         let url =  c.request.body.url;
-        // ctx.broadcast([...config.groupMvp], h.image(url))
+        ctx.broadcast([...config.groupMvp], h.image(url))
         // await (ctx as any).broadcast([...config.groupMvp], h.image(url))
         ctx.bots.forEach((e: Bot) => {
             e.sendMessage("724117869", h.image(url))
@@ -70,7 +70,7 @@ export default function apply(ctx: Context, config: Config) {
         // let bot = ctx.bots["onebot:2127097569"]
         // bot.broadcast(["585681900"], msg)
         // // await (ctx as any).broadcast([...config.groupSendMsg], msg)
-        await ctx.broadcast([...config.groupMvp], msg)
+        await ctx.broadcast([...config.groupSendMsg], msg)
 
 
 
@@ -440,13 +440,13 @@ export default function apply(ctx: Context, config: Config) {
                     <a href={newContentUrl} >链接：</a><br/>
                     {data.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
                     </>
-                // await (ctx as any).broadcast([...config.goroupLastNew], msg)
-                ctx.bots.forEach((e: Bot) => {
-                    e.sendMessage("724117869", msg)
-                    e.sendMessage("320449295", msg)
-                    e.sendMessage("894568698", msg)
+                await ctx.broadcast([...config.goroupLastNew], msg)
+                // ctx.bots.forEach((e: Bot) => {
+                //     e.sendMessage("724117869", msg)
+                //     e.sendMessage("320449295", msg)
+                //     e.sendMessage("894568698", msg)
                 
-                })
+                // })
                 
 
                 // await addNews(newData, ctx)
@@ -473,13 +473,13 @@ export default function apply(ctx: Context, config: Config) {
             <a href={url} >链接：</a><br/>
             {newDatav2.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
             </>
-            // await (ctx as any).broadcast([...config.goroupLastNew], msg)
-            ctx.bots.forEach((e: Bot) => {
-                e.sendMessage("724117869", h.image(msg))
-                e.sendMessage("320449295", h.image(msg))
-                e.sendMessage("894568698", h.image(msg))
+            await ctx.broadcast([...config.goroupLastNew], msg)
+            // ctx.bots.forEach((e: Bot) => {
+            //     e.sendMessage("724117869", h.image(msg))
+            //     e.sendMessage("320449295", h.image(msg))
+            //     e.sendMessage("894568698", h.image(msg))
             
-            })
+            // })
 
         }else {
             logger.info('没有新公告')
