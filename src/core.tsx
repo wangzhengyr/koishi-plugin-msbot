@@ -38,7 +38,7 @@ export default function apply(ctx: Context, config: Config) {
     ctx.server.post('/tempMvp', async (c, next) => {
         
         let url =  c.request.body.url;
-        ctx.broadcast([...config.groupMvp], h.image(url))
+        // ctx.broadcast([...config.groupMvp], h.image(url))
         // await (ctx as any).broadcast([...config.groupMvp], h.image(url))
         ctx.bots.forEach((e: Bot) => {
             e.sendMessage("724117869", h.image(url))
