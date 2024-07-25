@@ -724,6 +724,20 @@ export default function apply(ctx: Context, config: Config) {
             name = info[0].name
         }
 
+        const userMentionMatch = name.match(/<at id="(\d+)"\/>/);
+        if (userMentionMatch) {
+            const userId = userMentionMatch[1];
+            let info: gmsInfo[] = await ctx.database.get('gmsInfo', {
+                userId
+            })
+            if(info.length == 0) {
+                return "对方未绑定角色"
+            }else {
+                name = info[0].name
+            }
+            logger.info(userId)
+        }
+
         // const url = `https://api.maplestory.gg/v2/public/character/gms/${name}`
         const url = `https://mapleranks.com/u/${name}`
         try {
