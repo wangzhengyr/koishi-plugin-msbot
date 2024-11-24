@@ -17,7 +17,7 @@ import fs from 'fs';
 //     onebotMvp?: string
 // }
 
-  
+
 // export const Config: Schema<Config> = Schema.intersect([
 //     Schema.object({
 //         onebotMvp: Schema.string().description('onebot平台mvp配置'),
@@ -36,7 +36,7 @@ export default function apply(ctx: Context, config: Config) {
 
 
     ctx.server.post('/tempMvp', async (c, next) => {
-        
+
         let url =  c.request.body.url;
         // ctx.broadcast([...config.groupMvp], h.image(url))
         // await (ctx as any).broadcast([...config.groupMvp], h.image(url))
@@ -44,7 +44,7 @@ export default function apply(ctx: Context, config: Config) {
             e.sendMessage("724117869", h.image(url))
             e.sendMessage("320449295", h.image(url))
             e.sendMessage("894568698", h.image(url))
-        
+
         })
         c.body = {
             code: 200,
@@ -79,7 +79,7 @@ export default function apply(ctx: Context, config: Config) {
             msg: 'success'
         }
         return c
-        
+
     })
 
     ctx.server.post('/mvp', async (c, next) => {
@@ -93,7 +93,7 @@ export default function apply(ctx: Context, config: Config) {
             msg: 'success'
         }
         return c
-        
+
     })
     ctx.server.post('/mvp2', async (c, next) => {
         let url =  c.request.body.url
@@ -217,15 +217,16 @@ export default function apply(ctx: Context, config: Config) {
 
         let questions = await getQuestionsByKey(key, ctx)
         let questions2 = await getAnswerBykey(key, ctx)
-        
+
         let result = questions.map((item, index) => `${index + 1}、${item.question}`).join('\n')
         let result2 = questions2.map((item, index) => `${index + 1}、${item.question}`).join('\n')
 
 
-        
+
 
         return `词条名中含有【${key}】的词条为：\n${result}\n词条描述中含有【${key}】的词条为：\n${result2}`
     })
+
     ctx.command('ms/删除 <q:string>', "删除词条")
     .usage("删除词条，参数为需要删除的词条名称，只能删除自己创建的词条")
     .example("删除 蠢猫")
@@ -256,10 +257,10 @@ export default function apply(ctx: Context, config: Config) {
         }else {
             return `词条【${q}】删除失败`
         }
-        
+
         // session.send(`您的权限等级为：${user.authority}`);
     })
-   
+
 
     ctx.command('ms/修改词条', '根据提示修改词条内容')
     .usage('根据提示修改词条内容')
@@ -300,12 +301,12 @@ export default function apply(ctx: Context, config: Config) {
             await delFileByAnswer(answer[0].answer)
         }
 
-        
+
         await ctx.database.set('answers', {
             id: question.answerid
         }, {
             answer: a
-        })        
+        })
 
         return `修改词条【${q}】成功`
     })
@@ -313,10 +314,13 @@ export default function apply(ctx: Context, config: Config) {
 
 
     ctx.middleware(async (session, next) => {
-        let content = session.content.replace(/\s/g, '').toLowerCase()
+        // 去除qq官方@格式
+        let content = session.content.replace(/<at[^>]*>/, '');
+        content = content.replace(/\s/g, '').toLowerCase()
         let qa = await getQAndAByQestion(content, ctx)
-        logger.info(qa)
-    
+        logger.info("问题：", content)
+        logger.info("答案：",qa)
+
         if(!qa) {
             return next()
         }
@@ -331,7 +335,7 @@ export default function apply(ctx: Context, config: Config) {
         //result(词条王郑是什么、王郑是？、王郑：、王郑】、嘻嘻、哈哈同义。)
         if(result === '') {
             return qa.answer
-            
+
         }else {
             return qa.answer + "\n(词条"+ result +"同义。)"
         }
@@ -345,7 +349,7 @@ export default function apply(ctx: Context, config: Config) {
         try {
             let news = await ctx.http.get<newDatav2[]>(apiUrl)
             newData = news[0]
-           
+
         } catch (error) {
 
             logger.error(error)
@@ -396,7 +400,7 @@ export default function apply(ctx: Context, config: Config) {
                 })
                 logger.info("链接：" + newContentUrl)
                 logger.info("页面高度：" + data.hight)
-                
+
                 imageBuffer = await content.screenshot({})
             } catch (error) {
                 page.close()
@@ -409,7 +413,7 @@ export default function apply(ctx: Context, config: Config) {
                 logger.info(imageBuffer.byteLength)
                 //将图像缓冲区转换为 Base64 编码的字符串
                 const base64Image = imageBuffer.toString('base64')
-    
+
                 // 创建数据 URI
                 const dataURI = `data:image/png;base64,${base64Image}`
 
@@ -419,7 +423,7 @@ export default function apply(ctx: Context, config: Config) {
                 if (!fs.existsSync(dir)) {
                     fs.mkdirSync(dir, { recursive: true });
                 }
-                
+
 
                 await fs.promises.writeFile(filepath, Buffer.from(imageBuffer))
                 logger.info('保存完成：' + filepath)
@@ -445,9 +449,9 @@ export default function apply(ctx: Context, config: Config) {
                 //     e.sendMessage("724117869", msg)
                 //     e.sendMessage("320449295", msg)
                 //     e.sendMessage("894568698", msg)
-                
+
                 // })
-                
+
 
                 // await addNews(newData, ctx)
             } catch (error) {
@@ -478,14 +482,14 @@ export default function apply(ctx: Context, config: Config) {
             //     e.sendMessage("724117869", h.image(msg))
             //     e.sendMessage("320449295", h.image(msg))
             //     e.sendMessage("894568698", h.image(msg))
-            
+
             // })
 
         }else {
             logger.info('没有新公告')
         }
-        
-        
+
+
         return
 
     })
@@ -508,7 +512,7 @@ export default function apply(ctx: Context, config: Config) {
             'community': '社区公告',
             'update': '更新公告',
             'new': '最新公告'
-        
+
         }
 
         let type = 'new'
@@ -524,25 +528,25 @@ export default function apply(ctx: Context, config: Config) {
 
 
         if(type != 'new') {
-    
+
             newDatas = await ctx.database.get('newDatav2', {
                 category: type
             })
-            
+
 
         }else {
             newDatas = await ctx.database.get('newDatav2', {
                 isNew: true
             })
         }
-        
+
         if(newDatas.length === 0) {
-            
+
             let api = "https://g.nexonstatic.com/maplestory/cms/v1/news"
 
             let newDatav2s = await ctx.http.get<newDatav2[]>(api)
             if(!newDatav2s || newDatav2s.length === 0) return `暂无${map[type]}公告`
-            
+
             if(type === 'new') {
                 newDatav2  = newDatav2s[0]
                 newDatav2.isNew = true
@@ -593,7 +597,7 @@ export default function apply(ctx: Context, config: Config) {
                 })
                 logger.info("链接：" + newContentUrl)
                 logger.info("页面高度：" + data.hight)
-                
+
                 imageBuffer = await content.screenshot({})
             } catch (error) {
                 page.close()
@@ -606,7 +610,7 @@ export default function apply(ctx: Context, config: Config) {
                 logger.info(imageBuffer.byteLength)
                 //将图像缓冲区转换为 Base64 编码的字符串
                 const base64Image = imageBuffer.toString('base64')
-    
+
                 // 创建数据 URI
                 const dataURI = `data:image/png;base64,${base64Image}`
 
@@ -616,7 +620,7 @@ export default function apply(ctx: Context, config: Config) {
                 if (!fs.existsSync(dir)) {
                     fs.mkdirSync(dir, { recursive: true });
                 }
-                
+
 
                 await fs.promises.writeFile(filepath, Buffer.from(imageBuffer))
                 logger.info('保存完成：' + filepath)
@@ -642,7 +646,7 @@ export default function apply(ctx: Context, config: Config) {
                 session.send('新闻-发送新闻异常。')
             }
             page.close()
-            
+
         }else {
             newDatav2 = newDatas[0]
         }
@@ -658,7 +662,7 @@ export default function apply(ctx: Context, config: Config) {
         {newDatav2.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
         </>
         return msg
-        
+
 
 
 
@@ -765,14 +769,14 @@ export default function apply(ctx: Context, config: Config) {
                 characterData.total_exp_14 = numberToUnitString( parseNumberFromString(characterData.total_exp_14) * xishu)
                 characterData.total_exp_7 = numberToUnitString( parseNumberFromString(characterData.total_exp_7) * xishu)
 
-                
-                
+
+
                 characterData.chart = characterData.chart.map(e => e * xishu)
 
             }
 
             if(characterData == null) return '角色不存在'
-    
+
             let imageBuffer = await generateCharacterImage(page, characterData, config)
             page.close()
 
@@ -855,7 +859,7 @@ export default function apply(ctx: Context, config: Config) {
 
     //     //     // // 获取新闻标题
     //     //     // const title = document.querySelectorAll('li.news-item[data-equalizer=""]')[1]?.querySelectorAll('a')[1]?.innerText
-            
+
     //     //     // // 获取新闻详情url
     //     //     // const url = document.querySelectorAll('li.news-item[data-equalizer=""]')[1]?.querySelectorAll('a')[1]?.href
 
@@ -919,7 +923,7 @@ export default function apply(ctx: Context, config: Config) {
     //         // document.querySelector("div[class='component component-news-article']")?.style
     //         // (document.querySelector("div[class='component component-news-article']") as HTMLElement).style.width = '400px'
     //         const contentElement = document.querySelector("div[class='component component-news-article']")
-            
+
     //         // (document.querySelector("div[class='component component-news-article']") as HTMLElement).style.height = height * 0.9.valueOf() + 'px'
     //         // let h = (document.querySelectorAll('div.small-12.small-centered.columns')[1] as HTMLElement).offsetWidth;
     //         // (document.querySelectorAll('div.small-12.small-centered.columns')[1] as HTMLElement).style.width = h * 1.4.valueOf() + 'px'
@@ -932,7 +936,7 @@ export default function apply(ctx: Context, config: Config) {
 
     //     let content = await page.$('div.component.component-news-article')
     //     // let content = await page.$('div.small-12.small-centered.columns')
-       
+
 
     //     await content.evaluate(() => {
     //         document.querySelector('#onetrust-banner-sdk').remove()
@@ -960,7 +964,7 @@ export default function apply(ctx: Context, config: Config) {
     //         h.text(`原文：\n`),
     //         h.text(`链接：${newContent}`)
     //     ])
-    //     return 
+    //     return
     // })
 
     // ctx.command('test3')
@@ -972,7 +976,7 @@ export default function apply(ctx: Context, config: Config) {
 
     //     logger.info("发送消息：" + res)
     // })
-    
+
 
     ctx.on('bot-status-updated', (bot) => {
         if (bot.status === 1) {
@@ -1006,9 +1010,9 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
             if(document.querySelector('h2')?.innerText == 'Not Found') {
                 return null
             }
-            
-            
-            
+
+
+
             let chartData
             let chart
             let labels
@@ -1046,7 +1050,7 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
             const legion_rank = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[1]?.children[0]?.children[0] as HTMLElement)?.innerText
             const legion_lv = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[1]?.children[1]?.children[0] as HTMLElement)?.innerText
             let legion_power_value =  (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[1]?.children[2]?.children[0]?.childNodes[0] as HTMLInputElement)?.value
-            
+
             // 联盟战力需要转数字
             let legion_power
             if (legion_power_value) {
@@ -1063,8 +1067,8 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
                     ? Number((e / 1e12).toFixed(2)) + "T"
                     : "" + e;
             }
-            
-            
+
+
 
             const legion_bi = (document.querySelector('div.d-flex.justify-content-between.my-2')?.childNodes[5]?.childNodes[0] as HTMLInputElement)?.value
             const chengjiuzhi = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[2]?.children[2]?.children[0] as HTMLElement)?.innerText
@@ -1086,7 +1090,7 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
                     const lv = fujin_job_rank_lvs[index].innerText;
                     fujin_job_rank_name_lv.push({ name, lv });
                 });
-            
+
             }
 
             const fujin_rank_names = document.querySelectorAll('div.accordion-collapse.collapse.show.rkaccord')[1]?.querySelectorAll('strong');
@@ -1098,7 +1102,7 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
                     const lv = fujin_rank_lvs[index].innerText;
                     fujin_rank_name_lv.push({ name, lv });
                 });
-            
+
                 console.log(fujin_rank_name_lv);
             }
 
@@ -1135,7 +1139,7 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
 
 
 async function generateCharacterImage(page: Page, characterData: characterData, cfg: Config) {
-    
+
     // let page = await browser.newPage()
     let labels
 
@@ -1159,8 +1163,8 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
         chart_unit = characterData.chart.map(e => {
 
             return numberToUnitString(e)
-            
-                
+
+
             })
 
 
@@ -1199,7 +1203,7 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
     let fujin_job_rank_htmlText = ''
     let fujin_rank_htmlText = ''
     if(visibility2 === 'visibility') {
-       
+
         characterData.fujin_job_rank_name_lv.forEach(rank => {
             if(rank.name.split('.')[1].trim() === characterData.name) {
                 fujin_job_rank_htmlText += `
@@ -1221,16 +1225,16 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
                         <p>${rank.lv}</p>
                     </div>
                 </div>`
-            
+
             }
-            
+
 
         })
     }
     if(visibility3 === 'visibility') {
-       
+
         characterData.fujin_rank_name_lv.forEach(rank => {
-            
+
             if(rank.name.split('.')[1].trim() === characterData.name) {
                 fujin_rank_htmlText += `
                     <div class="rank rankshow">
@@ -1251,16 +1255,16 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
                         <p>${rank.lv}</p>
                     </div>
                 </div>`
-            
+
             }
-            
+
         })
     }
-    
 
-    
 
-    
+
+
+
     let htmlContent = `
     <!DOCTYPE html>
     <html lang="en">
@@ -1709,7 +1713,7 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
     ],
     },
     options: {
-    animation: false,    
+    animation: false,
     scales: {
         y: {
         ticks: {
@@ -1835,7 +1839,7 @@ function parseNumberFromString(str: string) {
             return value * suffixes[suffix];
         }
     }
-    
+
     // 如果字符串没有后缀，则直接解析为数字
     return parseFloat(str);
 }

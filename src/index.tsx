@@ -64,11 +64,11 @@ export const inject = {
 }
 
 export function apply(ctx: Context, config: Config) {
-  logger.info("ms插件以开启233");
+  logger.info("ms插件以开启23333");
   ctx.plugin(Model)
   ctx.plugin(Core, config)
-  
-  
+
+
   // ctx.command('test')
   // .action(async ({session}) => {
   //   // let content = session.content
@@ -79,7 +79,7 @@ export function apply(ctx: Context, config: Config) {
   //   // content = content.replace(/img/g, "image");
   //   // let content = <img src="http://gchat.qpic.cn/gchatpic_new/441481065/724117869-2974150074-A055C8079B7B8D04FD631D0F8213177E/0?term=255&amp;is_origin=0" file="http://gchat.qpic.cn/gchatpic_new/441481065/724117869-2974150074-A055C8079B7B8D04FD631D0F8213177E/0?term=255&amp;is_origin=0" url="http://gchat.qpic.cn/gchatpic_new/441481065/724117869-2974150074-A055C8079B7B8D04FD631D0F8213177E/0?term=255&amp;is_origin=0"/>
   //   // let content = '233<image src="https://koishi.chat/logo.png" url="https://koishi.chat/logo.png"/>2323'
-    
+
   //   logger.info("转换前:" + content)
   //   if(ctx.assets){
   //     let res = await ctx.assets.transform(content)
@@ -160,7 +160,7 @@ export function apply(ctx: Context, config: Config) {
   //     fileStream.end();
   //     fileStream.on('finish', () => {
   //       logger.info(`Image saved to ${filename}`);
-  //       resolve(undefined); 
+  //       resolve(undefined);
   //     });
   //     fileStream.on('error', (error) => {
   //       reject(error);
@@ -168,7 +168,7 @@ export function apply(ctx: Context, config: Config) {
   //   });
   // }
 
-  
+
 
 }
 
