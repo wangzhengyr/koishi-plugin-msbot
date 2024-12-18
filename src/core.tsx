@@ -797,10 +797,11 @@ export default function apply(ctx: Context, config: Config) {
     .action(async ({session}) => {
         const api = "http://zaizai123.top:3001/fatal"
         let res = await ctx.http.get(api)
-        let q5Pd = res[0].value.split('\n')
+        logger.info(res)
+        let q5Pd = res[0].value.replace(/Channel/g, "频道").split('\n')
         let q5Pl = res[1].value.split('\n')
         let q5Tb = res[2].value.split('\n')
-        let q5Pd1 = res[3].value.split('\n')
+        let q5Pd1 = res[3].value.replace(/Channel/g, "频道").split('\n')
         let q5Pl1 = res[4].value.split('\n')
         let q5Tb1 = res[5].value.split('\n')
 
