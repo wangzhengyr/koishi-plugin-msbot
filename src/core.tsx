@@ -793,12 +793,47 @@ export default function apply(ctx: Context, config: Config) {
 
     })
 
+    ctx.command('ms/查询延迟')
+    .action(async ({session}) => {
+        const api = "http://zaizai123.top:3001/fatal"
+        let res = await ctx.http.get(api)
+        let q5Pd = res[0].value.split('\n')
+        let q5Pl = res[1].value.split('\n')
+        let q5Tb = res[2].value.split('\n')
+        let q5Pd1 = res[3].value.split('\n')
+        let q5Pl1 = res[4].value.split('\n')
+        let q5Tb1 = res[5].value.split('\n')
+
+        let msg = <>
+        <text content={ '最高延迟' } /><br/>
+        <text content={ q5Pd[0] } />  <text content={ q5Pl[0] } />  <text content={ q5Tb[0] } /><br/>
+        <text content={ q5Pd[1] } />  <text content={ q5Pl[1] } />  <text content={ q5Tb[1] } /><br/>
+        <text content={ q5Pd[2] } />  <text content={ q5Pl[2] } />  <text content={ q5Tb[2] } /><br/>
+        <text content={ q5Pd[3] } />  <text content={ q5Pl[3] } />  <text content={ q5Tb[3] } /><br/>
+        <text content={ q5Pd[4] } />  <text content={ q5Pl[4] } />  <text content={ q5Tb[4] } /><br/>
+    
+        <text content={ '最低延迟' } /><br/>
+        <text content={ q5Pd1[0] } />  <text content={ q5Pl1[0] } />  <text content={ q5Tb1[0] } /><br/>
+        <text content={ q5Pd1[1] } />  <text content={ q5Pl1[1] } />  <text content={ q5Tb1[1] } /><br/>
+        <text content={ q5Pd1[2] } />  <text content={ q5Pl1[2] } />  <text content={ q5Tb1[2] } /><br/>
+        <text content={ q5Pd1[3] } />  <text content={ q5Pl1[3] } />  <text content={ q5Tb1[3] } /><br/>
+        <text content={ q5Pd1[4] } />  <text content={ q5Pl1[4] } />  <text content={ q5Tb1[4] } /><br/>
+        
+        
+        </>
+        return msg
+        logger.info(res)
+    })
+
+
     ctx.command('今日早报')
     .action(async ({session}) => {
         const api = "http://dwz.2xb.cn/zaob"
         let res = await ctx.http.get(api)
         return h.image(res.imageUrl)
     })
+
+
 
     ctx.command('dailynews')
     .action(async ({session}) => {
