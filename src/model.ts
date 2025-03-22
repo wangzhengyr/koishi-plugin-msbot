@@ -1,5 +1,5 @@
 import { Context, Logger } from 'koishi'
-import  fs from 'fs' 
+import  fs from 'fs'
 
 // 整体导出对象形式的插件
 export interface Config {}
@@ -70,9 +70,10 @@ export interface newDatav2 {
     nid: number,
     isNew?: boolean,
     imgbase64?: string,
-    isOverHight?: boolean
+    isOverHight?: boolean,
+    isArchived?: boolean
 }
-  
+
 
 // 这里是新增表的接口类型
 export interface Answer {
@@ -125,7 +126,8 @@ export default function apply(ctx: Context, config: Config) {
         summary: 'string',
         isNew: 'boolean',
         imgbase64: 'text',
-        isOverHight: 'boolean'
+        isOverHight: 'boolean',
+        isArchived: 'boolean'
     }, {
         primary: 'id',
     })
@@ -139,14 +141,14 @@ export default function apply(ctx: Context, config: Config) {
         primary: 'id',
         autoInc: true,
     })
-    
+
 
 }
 
 
 
 export async function getQuestionByquestion(question: string, ctx: Context): Promise<Question> {
-    let questions = await ctx.database.get('questions', { 
+    let questions = await ctx.database.get('questions', {
         question: question,
     })
     return questions[0]
@@ -157,16 +159,16 @@ export async function getAnswerById(id: number, ctx: Context): Promise<Answer> {
     // .select('answers')
     // .where({ id: id})
     // .execute()
-    let answer = await ctx.database.get('answers', { 
+    let answer = await ctx.database.get('answers', {
         id: id,
     })
     return answer[0]
 }
 
 export async function getQuestionsByKey(key: string, ctx: Context): Promise<Question[]> {
-    // let regex = new RegExp(".*" + key + ".*"); 
-    let regex = new RegExp(key); 
-    return ctx.database.get('questions', { 
+    // let regex = new RegExp(".*" + key + ".*");
+    let regex = new RegExp(key);
+    return ctx.database.get('questions', {
         question: { $regex: regex },
     })
 }
@@ -174,7 +176,7 @@ export async function getQuestionsByKey(key: string, ctx: Context): Promise<Ques
 export async function getAnswerBykey(key: string, ctx: Context): Promise<Question[]> {
     // let regex = new RegExp(".*" + key + ".*")
     let regex = new RegExp(key)
-    let answer = await ctx.database.get('answers', { 
+    let answer = await ctx.database.get('answers', {
         answer: { $regex: regex },
     })
 
@@ -198,19 +200,19 @@ export async function delQestionsByQuestion(q: string, answerId: number, userId:
     if(questions.length === 1) {
         // 先删除图片
         let answer = await getAnswerById(answerId, ctx)
-        
+
 
         await delFileByAnswer(answer.answer)
 
 
 
-        await ctx.database.remove('answers', { 
+        await ctx.database.remove('answers', {
             id: answerId,
         })
 
     }
 
-    return ctx.database.remove('questions', { 
+    return ctx.database.remove('questions', {
         question: q,
         createdid: userId
     })
@@ -246,7 +248,7 @@ export async function addQestuinAndAnswer(answer: Answer, question: Question, ct
     return addQuestion(question, ctx)
 }
 export async function getQuestionsByAnswerId(answerId: number, ctx: Context) {
-    return ctx.database.get('questions', { 
+    return ctx.database.get('questions', {
         answerid: answerId,
     })
 }
@@ -259,7 +261,7 @@ export function buildQuestion(question: string, answerid: number, parentid = 0, 
         parentid,
         createdid
     };
-    return  q 
+    return  q
 }
 
 export function buildAnswer(answer: string):Answer {

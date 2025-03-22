@@ -292,7 +292,6 @@ export default function apply(ctx: Context, config: Config) {
         a = await ctx.assets.transform(a)
         logger.info(a)
 
-
         let answer = await ctx.database.get('answers', {
             id: question.answerid
         })
@@ -314,6 +313,7 @@ export default function apply(ctx: Context, config: Config) {
 
 
     ctx.middleware(async (session, next) => {
+        logger.info("收到的消息：", session.content)
         // 去除qq官方@格式
         let content = session.content.replace(/<at[^>]*>/, '');
         content = content.replace(/\s/g, '').toLowerCase()
@@ -332,7 +332,6 @@ export default function apply(ctx: Context, config: Config) {
         .map(item => item.question).join('、')
 
 
-        //result(词条王郑是什么、王郑是？、王郑：、王郑】、嘻嘻、哈哈同义。)
         if(result === '') {
             return qa.answer
 
@@ -349,6 +348,7 @@ export default function apply(ctx: Context, config: Config) {
         try {
             let news = await ctx.http.get<newDatav2[]>(apiUrl)
             newData = news[0]
+
 
         } catch (error) {
 
@@ -812,15 +812,15 @@ export default function apply(ctx: Context, config: Config) {
         <text content={ q5Pd[2] } />  <text content={ q5Pl[2] } />  <text content={ q5Tb[2] } /><br/>
         <text content={ q5Pd[3] } />  <text content={ q5Pl[3] } />  <text content={ q5Tb[3] } /><br/>
         <text content={ q5Pd[4] } />  <text content={ q5Pl[4] } />  <text content={ q5Tb[4] } /><br/>
-    
+
         <text content={ '最低延迟' } /><br/>
         <text content={ q5Pd1[0] } />  <text content={ q5Pl1[0] } />  <text content={ q5Tb1[0] } /><br/>
         <text content={ q5Pd1[1] } />  <text content={ q5Pl1[1] } />  <text content={ q5Tb1[1] } /><br/>
         <text content={ q5Pd1[2] } />  <text content={ q5Pl1[2] } />  <text content={ q5Tb1[2] } /><br/>
         <text content={ q5Pd1[3] } />  <text content={ q5Pl1[3] } />  <text content={ q5Tb1[3] } /><br/>
         <text content={ q5Pd1[4] } />  <text content={ q5Pl1[4] } />  <text content={ q5Tb1[4] } /><br/>
-        
-        
+
+
         </>
         return msg
         logger.info(res)
