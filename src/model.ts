@@ -67,7 +67,7 @@ export interface newDatav2 {
     liveDate: Date,
     name: string,
     summary: string,
-    nid: number,
+    nid?: number,
     isNew?: boolean,
     imgbase64?: string,
     isOverHight?: boolean,

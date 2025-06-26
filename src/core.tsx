@@ -346,7 +346,18 @@ export default function apply(ctx: Context, config: Config) {
         const apiUrl = "https://g.nexonstatic.com/maplestory/cms/v1/news"
         let newData : newDatav2
         try {
-            let news = await ctx.http.get<newDatav2[]>(apiUrl)
+            // let news = await ctx.http.get<newDatav2[]>(apiUrl)
+            const rawData = await ctx.http.get<any[]>(apiUrl)
+            const news: newDatav2[] = rawData.map(item => ({
+              id: item.id,
+              category: item.category,
+              featured: item.featured,
+              imageThumbnail: item.imageThumbnail,
+              liveDate: new Date(item.liveDate),
+              name: item.name,
+              summary: item.summary,
+              isArchived: item.isArchived ?? false,
+            }))
             newData = news[0]
 
 
@@ -354,16 +365,16 @@ export default function apply(ctx: Context, config: Config) {
 
             logger.error(error)
             logger.error('新闻-请求api异常。')
-            session.send('新闻-请求api异常。')
+            await session.send('新闻-请求api异常。')
         }
         let flag = await getLastNewsV2(newData, ctx)
         if(flag === 1) {
             logger.info('检测到有新公告')
             const newContentUrl = `https://www.nexon.com/maplestory/news/${newData.category}/${newData.id}`
             const page = await ctx.puppeteer.page()
-            page.setViewport({
-                width: 1800,
-                height: 1532
+            await page.setViewport({
+              width: 1800,
+              height: 1532
             })
             try {
                 await page.goto(newContentUrl, {
