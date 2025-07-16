@@ -381,97 +381,77 @@ export default function apply(ctx: Context, config: Config) {
                     waitUntil: 'networkidle0',
                     timeout: 30000,
                 })
-            } catch (error) {
-                page.close()
-                logger.error(error)
-                logger.error('新闻-打开详情页异常。')
-                session.send('新闻-打开详情页异常。')
-            }
-            let imageBuffer
-            let data
-            try {
-                let content = await page.$('div.card.v1')
-                data = await content.evaluate(() => {
-                    const MAXHIGHT = 15000
-                    let isOverHight = false
-                    document.querySelector('header').remove()
-                    document.querySelector('div[data-section-name="Contents Header"]').remove()
-                    document.querySelector('#onetrust-banner-sdk').remove()
-                    let hight = (document.querySelector('div.card.v1') as HTMLElement).offsetHeight
-                    if(hight > MAXHIGHT) {
-                        isOverHight = true;
-                        (document.querySelector('div.card.v1') as HTMLElement).style.height = MAXHIGHT + 'px'
-                        hight = MAXHIGHT
-                    }
 
-                    return {
-                        hight,
-                        isOverHight
-                    }
-                })
-                logger.info("链接：" + newContentUrl)
-                logger.info("页面高度：" + data.hight)
-
-                imageBuffer = await content.screenshot({})
-            } catch (error) {
-                page.close()
-                logger.error(error)
-                logger.error('新闻-详情页截图异常。')
-                session.send('新闻-详情页截图异常。')
-            }
-
-            try {
-                logger.info(imageBuffer.byteLength)
-                //将图像缓冲区转换为 Base64 编码的字符串
-                const base64Image = imageBuffer.toString('base64')
-
-                // 创建数据 URI
-                const dataURI = `data:image/png;base64,${base64Image}`
-
-                const filename = `${uuidv4()}.png`;
-                const filepath = resolve(process.cwd(), 'data', 'locales', 'news', filename);
-                const dir = dirname(filepath);
-                if (!fs.existsSync(dir)) {
-                    fs.mkdirSync(dir, { recursive: true });
+              const content = await page.$('div.card.v1')
+              if (!content) throw new Error('找不到内容区域')
+              const data = await content.evaluate(() => {
+                const MAXHIGHT = 15000
+                let isOverHight = false
+                document.querySelector('header').remove()
+                document.querySelector('div[data-section-name="Contents Header"]').remove()
+                document.querySelector('#onetrust-banner-sdk').remove()
+                let hight = (document.querySelector('div.card.v1') as HTMLElement).offsetHeight
+                if(hight > MAXHIGHT) {
+                  isOverHight = true;
+                  (document.querySelector('div.card.v1') as HTMLElement).style.height = MAXHIGHT + 'px'
+                  hight = MAXHIGHT
                 }
 
+                return {
+                  hight,
+                  isOverHight
+                }
+              })
 
-                await fs.promises.writeFile(filepath, Buffer.from(imageBuffer))
-                logger.info('保存完成：' + filepath)
+              logger.info("链接：" + newContentUrl)
+              logger.info("页面高度：" + data.hight)
 
-                // newData.imgbase64 = "file://" + filepath
-                // newData.isOverHight = data.isOverHight
-                await ctx.database.set('newDatav2', {
-                    id: newData.id
-                },{
-                    imgbase64: "file://" + filepath,
-                    isOverHight: data.isOverHight
-                })
-                let msg = <>
-                    <img src={dataURI}/><br/>
-                    <text content={'官网有新消息：'} /><br/>
-                    <text content={`标题：${newData.name}`} /><br/>
-                    <text content={`原文：${newData.summary}`} /><br/>
-                    <a href={newContentUrl} >链接：</a><br/>
-                    {data.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
-                    </>
-                await ctx.broadcast([...config.goroupLastNew], msg)
-                // ctx.bots.forEach((e: Bot) => {
-                //     e.sendMessage("724117869", msg)
-                //     e.sendMessage("320449295", msg)
-                //     e.sendMessage("894568698", msg)
+              const imageBuffer = await content.screenshot({})
+              logger.info(imageBuffer.byteLength)
+              //将图像缓冲区转换为 Base64 编码的字符串
+              const base64Image = imageBuffer.toString('base64')
 
-                // })
+              // 创建数据 URI
+              const dataURI = `data:image/png;base64,${base64Image}`
+
+              const filename = `${uuidv4()}.png`;
+              const filepath = resolve(process.cwd(), 'data', 'locales', 'news', filename);
+              const dir = dirname(filepath);
+              if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+              }
 
 
-                // await addNews(newData, ctx)
+              await fs.promises.writeFile(filepath, Buffer.from(imageBuffer))
+              logger.info('保存完成：' + filepath)
+
+              // newData.imgbase64 = "file://" + filepath
+              // newData.isOverHight = data.isOverHight
+              await ctx.database.set('newDatav2', {
+                id: newData.id
+              },{
+                imgbase64: "file://" + filepath,
+                isOverHight: data.isOverHight
+              })
+              let msg = <>
+                <img src={dataURI}/><br/>
+                <text content={'官网有新消息：'} /><br/>
+                <text content={`标题：${newData.name}`} /><br/>
+                <text content={`原文：${newData.summary}`} /><br/>
+                <a href={newContentUrl} >链接：</a><br/>
+                {data.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
+              </>
+              await ctx.broadcast([...config.goroupLastNew], msg)
             } catch (error) {
-                page.close()
-                logger.error(error)
-                logger.error('新闻-发送新闻异常。')
-                session.send('新闻-发送新闻异常。')
+              logger.error(error)
+              logger.error('新闻处理异常')
+              await session.send('新闻处理异常')
+            }finally {
+              await page.close()
             }
-            page.close()
+
+
+
 
         }else if(flag === 2) {
             let newDatas = await ctx.database.get('newDatav2', {
@@ -555,7 +535,17 @@ export default function apply(ctx: Context, config: Config) {
 
             let api = "https://g.nexonstatic.com/maplestory/cms/v1/news"
 
-            let newDatav2s = await ctx.http.get<newDatav2[]>(api)
+            let rawData = await ctx.http.get<any[]>(api)
+            const newDatav2s: newDatav2[] = rawData.map(item => ({
+              id: item.id,
+              category: item.category,
+              featured: item.featured,
+              imageThumbnail: item.imageThumbnail,
+              liveDate: new Date(item.liveDate),
+              name: item.name,
+              summary: item.summary,
+              isArchived: item.isArchived ?? false,
+            }))
             if(!newDatav2s || newDatav2s.length === 0) return `暂无${map[type]}公告`
 
             if(type === 'new') {
@@ -569,94 +559,67 @@ export default function apply(ctx: Context, config: Config) {
             }
             const newContentUrl = `https://www.nexon.com/maplestory/news/${newDatav2.category}/${newDatav2.id}`
             const page = await ctx.puppeteer.page()
-            page.setViewport({
-                width: 1800,
-                height: 1532
+            await page.setViewport({
+              width: 1800,
+              height: 1532
             })
             try {
                 await page.goto(newContentUrl, {
                     waitUntil: 'networkidle0',
                     timeout: 30000,
                 })
-            } catch (error) {
-                page.close()
-                logger.error(error)
-                logger.error('新闻-打开详情页异常。')
-                session.send('新闻-打开详情页异常。')
-            }
-            let imageBuffer
-            let data
-            try {
-                let content = await page.$('div.card.v1')
-                data = await content.evaluate(() => {
-                    const MAXHIGHT = 15000
-                    let isOverHight = false
-                    document.querySelector('header').remove()
-                    document.querySelector('div[data-section-name="Contents Header"]').remove()
-                    document.querySelector('#onetrust-banner-sdk').remove()
-                    let hight = (document.querySelector('div.card.v1') as HTMLElement).offsetHeight
-                    if(hight > MAXHIGHT) {
-                        isOverHight = true;
-                        (document.querySelector('div.card.v1') as HTMLElement).style.height = MAXHIGHT + 'px'
-                        hight = MAXHIGHT
-                    }
 
-                    return {
-                        hight,
-                        isOverHight
-                    }
-                })
-                logger.info("链接：" + newContentUrl)
-                logger.info("页面高度：" + data.hight)
-
-                imageBuffer = await content.screenshot({})
-            } catch (error) {
-                page.close()
-                logger.error(error)
-                logger.error('新闻-详情页截图异常。')
-                session.send('新闻-详情页截图异常。')
-            }
-
-            try {
-                logger.info(imageBuffer.byteLength)
-                //将图像缓冲区转换为 Base64 编码的字符串
-                const base64Image = imageBuffer.toString('base64')
-
-                // 创建数据 URI
-                const dataURI = `data:image/png;base64,${base64Image}`
-
-                const filename = `${uuidv4()}.png`;
-                const filepath = resolve(process.cwd(), 'data', 'locales', 'news', filename);
-                const dir = dirname(filepath);
-                if (!fs.existsSync(dir)) {
-                    fs.mkdirSync(dir, { recursive: true });
+              const content = await page.$('div.card.v1')
+              if (!content) throw new Error('找不到内容区域')
+              const data = await content.evaluate(() => {
+                const MAXHIGHT = 15000
+                let isOverHight = false
+                document.querySelector('header').remove()
+                document.querySelector('div[data-section-name="Contents Header"]').remove()
+                document.querySelector('#onetrust-banner-sdk').remove()
+                let hight = (document.querySelector('div.card.v1') as HTMLElement).offsetHeight
+                if(hight > MAXHIGHT) {
+                  isOverHight = true;
+                  (document.querySelector('div.card.v1') as HTMLElement).style.height = MAXHIGHT + 'px'
+                  hight = MAXHIGHT
                 }
 
+                return {
+                  hight,
+                  isOverHight
+                }
+              })
 
-                await fs.promises.writeFile(filepath, Buffer.from(imageBuffer))
-                logger.info('保存完成：' + filepath)
+              logger.info("链接：" + newContentUrl)
+              logger.info("页面高度：" + data.hight)
+              const imageBuffer = await content.screenshot({})
+              logger.info(imageBuffer.byteLength)
+              //将图像缓冲区转换为 Base64 编码的字符串
+              // const base64Image = imageBuffer.toString('base64')
+              //
+              // // 创建数据 URI
+              // const dataURI = `data:image/png;base64,${base64Image}`
 
-                newDatav2.imgbase64 = "file://" + filepath
-                newDatav2.isOverHight = data.isOverHight
+              const filename = `${uuidv4()}.png`;
+              const filepath = resolve(process.cwd(), 'data', 'locales', 'news', filename);
+              const dir = dirname(filepath);
+              if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+              }
 
-                await ctx.database.create('newDatav2', newDatav2)
-                // let msg = <>
-                //     <img src={dataURI}/><br/>
-                //     <text content={'官网有新消息：'} /><br/>
-                //     <text content={`标题：${newDatav2.name}`} /><br/>
-                //     <text content={`原文：${newDatav2.summary}`} /><br/>
-                //     <a href={newContentUrl} >链接：</a><br/>
-                //     {data.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
-                //     </>
-                // return msg
-                // await addNews(newData, ctx)
+              await fs.promises.writeFile(filepath, Buffer.from(imageBuffer))
+              logger.info('保存完成：' + filepath)
+              newDatav2.imgbase64 = "file://" + filepath
+              newDatav2.isOverHight = data.isOverHight
+
+              await ctx.database.create('newDatav2', newDatav2)
             } catch (error) {
-                page.close()
-                logger.error(error)
-                logger.error('新闻-发送新闻异常。')
-                session.send('新闻-发送新闻异常。')
+              logger.error(error)
+              logger.error('新闻处理异常')
+              await session.send('新闻处理异常')
+            }finally {
+              await page.close()
             }
-            page.close()
 
         }else {
             newDatav2 = newDatas[0]
@@ -673,28 +636,6 @@ export default function apply(ctx: Context, config: Config) {
         {newDatav2.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
         </>
         return msg
-
-
-
-
-
-    //    let datas = await getAllNewMessage(ctx)
-    //    const message = datas.map(obj => {
-    //     return Object.values(obj);
-    //   })
-    // datas.forEach(msg => {
-    //     session.send(
-    //         <>
-    //         <img src={msg.imgbase64}/> <br />
-    //         <text content={'官网有新消息：'} /> <br />
-    //         <text content={`标题：${msg.title}`} /> <br />
-    //         <text content={`原文：${msg.content}`} /> <br />
-    //         <a href={msg.url}>链接：</a><br />
-    //         {msg.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
-    //         </>
-    //     )
-    //   })
-    //   return
 
     })
 
