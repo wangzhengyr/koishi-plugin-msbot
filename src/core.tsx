@@ -730,16 +730,16 @@ export default function apply(ctx: Context, config: Config) {
             if(characterData == null) return '角色不存在'
 
             let imageBuffer = await generateCharacterImage(page, characterData, config)
-            page.close()
 
             return h.image(imageBuffer, 'image/png')
 
         } catch (error) {
-            page.close()
+          logger.error(error)
+          return '联盟查询异常'
+        }finally {
+          await page.close()  // ✅ 不管是否报错或提前 return，最终一定会执行
         }
 
-
-        return '联盟查询异常'
 
 
 
@@ -747,7 +747,7 @@ export default function apply(ctx: Context, config: Config) {
 
     ctx.command('ms/查询延迟')
     .action(async ({session}) => {
-        const api = "http://zaizai123.top:3001/fatal"
+        const api = "http://koishi.zaizai123.top:3001/fatal"
         let res = await ctx.http.get(api)
         logger.info(res)
         let q5Pd = res[0].value.replace(/Channel/g, "频道").split('\n')
@@ -774,8 +774,9 @@ export default function apply(ctx: Context, config: Config) {
 
 
         </>
-        return msg
-        logger.info(res)
+      logger.info(res)
+
+      return msg
     })
 
 
