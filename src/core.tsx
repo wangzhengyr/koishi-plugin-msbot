@@ -37,7 +37,7 @@ export default function apply(ctx: Context, config: Config) {
 
     ctx.server.post('/tempMvp', async (c, next) => {
 
-        let url =  c.request.body.url;
+        let url =  (c.request as any).body?.url;
         // ctx.broadcast([...config.groupMvp], h.image(url))
         // await (ctx as any).broadcast([...config.groupMvp], h.image(url))
         ctx.bots.forEach((e: Bot) => {
@@ -54,8 +54,8 @@ export default function apply(ctx: Context, config: Config) {
     })
 
     ctx.server.post('/msg', async (c, next) => {
-        let url =  c.request.body?.url;
-        let text =  c.request.body?.text;
+        let url =  (c.request as any).body?.url;
+        let text =  (c.request as any).body?.text;
         let msg = []
         if(text){
             msg.push(h.text(text))
@@ -83,7 +83,7 @@ export default function apply(ctx: Context, config: Config) {
     })
 
     ctx.server.post('/mvp', async (c, next) => {
-        let url =  c.request.body.url;
+        let url =  (c.request as any).body?.url;
         // ctx.broadcast([...config.groupMvp], h.image(url))
         // await (ctx as any).broadcast([...config.groupMvp], h.image(url))
         await ctx.broadcast([...config.groupMvp], h.image(url))
@@ -96,7 +96,7 @@ export default function apply(ctx: Context, config: Config) {
 
     })
     ctx.server.post('/mvp2', async (c, next) => {
-        let url =  c.request.body.url
+        let url =  (c.request as any).body?.url;
         // ctx.broadcast([...config.groupMvp2], h.image(url))
         // await (ctx as any).broadcast([...config.groupMvp2], h.image(url))
         await ctx.broadcast([...config.groupMvp2], h.image(url))
