@@ -342,150 +342,160 @@ export default function apply(ctx: Context, config: Config) {
 
 
     ctx.command('ms/lastnew', '获取官网最新公告')
-    .action(async ({session}) => {
+    .action(async ({ session }) => {
         const apiUrl = "https://g.nexonstatic.com/maplestory/cms/v1/news"
-        let newData : newDatav2
+        let newData: newDatav2 | undefined
         try {
-            // let news = await ctx.http.get<newDatav2[]>(apiUrl)
             const rawData = await ctx.http.get<any[]>(apiUrl)
-            const news: newDatav2[] = rawData.map(item => ({
-              id: item.id,
-              category: item.category,
-              featured: item.featured,
-              imageThumbnail: item.imageThumbnail,
-              liveDate: new Date(item.liveDate),
-              name: item.name,
-              summary: item.summary,
-              isArchived: item.isArchived ?? false,
-            }))
-            newData = news[0]
-
-
+            const news: newDatav2[] = rawData.map((item) => ({
+                id: item.id,
+                category: item.category,
+                featured: item.featured,
+                imageThumbnail: item.imageThumbnail,
+                liveDate: new Date(item.liveDate),
+                name: item.name,
+                summary: item.summary,
+                isArchived: item.isArchived ?? false,
+            })).sort((a, b) => b.liveDate.getTime() - a.liveDate.getTime())
+            newData = news.find((item) => !item.isArchived) ?? news[0]
         } catch (error) {
-
             logger.error(error)
-            logger.error('新闻-请求api异常。')
-            await session.send('新闻-请求api异常。')
+            logger.error('新闻-请求api异常')
+            await session.send('新闻-请求api异常')
+            return
         }
-        let flag = await getLastNewsV2(newData, ctx)
-        if(flag === 1) {
-            logger.info('检测到有新公告')
+
+        if (!newData) {
+            logger.warn('新闻-未获取到有效公告数据')
+            await session.send('暂时没有获取到官网公告')
+            return
+        }
+
+        const flag = await getLastNewsV2(newData, ctx)
+
+        if (flag === 1) {
+            logger.info('检测到新的官网公告')
             const newContentUrl = `https://www.nexon.com/maplestory/news/${newData.category}/${newData.id}`
             const page = await ctx.puppeteer.page()
             await page.setViewport({
-              width: 1800,
-              height: 1532
+                width: 1280,
+                height: 1532,
             })
-            try {
-                await page.goto(newContentUrl, {
-                    waitUntil: 'networkidle0',
-                    timeout: 30000,
-                })
 
-              const content = await page.$('div.card.v1')
-              if (!content) throw new Error('找不到内容区域')
-              const data = await content.evaluate(() => {
-                const MAXHIGHT = 15000
-                let isOverHight = false
-                document.querySelector('header').remove()
-                document.querySelector('div[data-section-name="Contents Header"]').remove()
-                document.querySelector('#onetrust-banner-sdk').remove()
-                let hight = (document.querySelector('div.card.v1') as HTMLElement).offsetHeight
-                if(hight > MAXHIGHT) {
-                  isOverHight = true;
-                  (document.querySelector('div.card.v1') as HTMLElement).style.height = MAXHIGHT + 'px'
-                  hight = MAXHIGHT
+            const blockedTypes = new Set(['media', 'eventsource', 'websocket', 'manifest'])
+            const requestHandler = (request: any) => {
+                try {
+                    if (blockedTypes.has(request.resourceType())) {
+                        request.abort()
+                    } else {
+                        request.continue()
+                    }
+                } catch (err) {
+                    logger.debug(err)
                 }
-
-                return {
-                  hight,
-                  isOverHight
-                }
-              })
-
-              logger.info("链接：" + newContentUrl)
-              logger.info("页面高度：" + data.hight)
-
-              const imageBuffer = await content.screenshot({})
-              logger.info(imageBuffer.byteLength)
-              //将图像缓冲区转换为 Base64 编码的字符串
-              const base64Image = imageBuffer.toString('base64')
-
-              // 创建数据 URI
-              const dataURI = `data:image/png;base64,${base64Image}`
-
-              const filename = `${uuidv4()}.png`;
-              const filepath = resolve(process.cwd(), 'data', 'locales', 'news', filename);
-              const dir = dirname(filepath);
-              if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-              }
-
-
-              await fs.promises.writeFile(filepath, Buffer.from(imageBuffer))
-              logger.info('保存完成：' + filepath)
-
-              // newData.imgbase64 = "file://" + filepath
-              // newData.isOverHight = data.isOverHight
-              await ctx.database.set('newDatav2', {
-                id: newData.id
-              },{
-                imgbase64: "file://" + filepath,
-                isOverHight: data.isOverHight
-              })
-              let msg = <>
-                <img src={dataURI}/><br/>
-                <text content={'官网有新消息：'} /><br/>
-                <text content={`标题：${newData.name}`} /><br/>
-                <text content={`原文：${newData.summary}`} /><br/>
-                <a href={newContentUrl} >链接：</a><br/>
-                {data.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
-              </>
-              await ctx.broadcast([...config.goroupLastNew], msg)
-            } catch (error) {
-              logger.error(error)
-              logger.error('新闻处理异常')
-              await session.send('新闻处理异常')
-            }finally {
-              await page.close()
             }
 
+            try {
+                await page.emulateMediaType('screen')
+                await page.setRequestInterception(true)
+                page.on('request', requestHandler)
 
+                await page.goto(newContentUrl, {
+                    waitUntil: 'networkidle2',
+                    timeout: 45000,
+                })
 
+                const content = await page.waitForSelector('div.card.v1', { timeout: 20000 })
+                if (!content) throw new Error('未找到公告内容区域')
 
-        }else if(flag === 2) {
-            let newDatas = await ctx.database.get('newDatav2', {
-                isNew: true
+                const data = await content.evaluate(() => {
+                    const MAX_HEIGHT = 15000
+                    let isOverHight = false
+                    const selectors = ['header', 'div[data-section-name="Contents Header"]', '#onetrust-banner-sdk']
+                    selectors.forEach((selector) => {
+                        const element = document.querySelector(selector)
+                        if (element && element.parentElement) {
+                            element.parentElement.removeChild(element)
+                        }
+                    })
+                    const target = document.querySelector('div.card.v1') as HTMLElement | null
+                    if (target && target.offsetHeight > MAX_HEIGHT) {
+                        isOverHight = true
+                        target.style.height = `${MAX_HEIGHT}px`
+                    }
+                    return {
+                        isOverHight,
+                    }
+                })
+
+                logger.info("链接：" + newContentUrl)
+
+                const imageBuffer = await content.screenshot({ type: "png" })
+                logger.info(imageBuffer.byteLength)
+
+                const filename = `${uuidv4()}.png`
+                const filepath = resolve(process.cwd(), 'data', 'locales', 'news', filename)
+                await fs.promises.mkdir(dirname(filepath), { recursive: true })
+                await fs.promises.writeFile(filepath, imageBuffer)
+                logger.info('保存完成：' + filepath)
+
+                await ctx.database.set('newDatav2', {
+                    id: newData.id,
+                }, {
+                    imgbase64: `file://${filepath}`,
+                    isOverHight: data.isOverHight,
+                })
+
+                const msg = <>
+                    <img src={`file://${filepath}`} /><br/>
+                    <text content={'官网有新消息！'} /><br/>
+                    <text content={`标题：${newData.name}`} /><br/>
+                    <text content={`正文：${newData.summary}`} /><br/>
+                    <a href={newContentUrl} >点击查看原文</a><br/>
+                    {data.isOverHight ? <text content={'提示：内容较多，仅展示部分截图'} /> : null}
+                </>
+                await ctx.broadcast([...config.goroupLastNew], msg)
+            } catch (error) {
+                logger.error(error)
+                logger.error('新闻处理异常')
+                await session.send('新闻处理异常')
+            } finally {
+                page.off('request', requestHandler)
+                try {
+                    await page.setRequestInterception(false)
+                } catch { /* noop */ }
+                if (!page.isClosed()) {
+                    await page.close()
+                }
+            }
+
+        } else if (flag === 2) {
+            const newDatas = await ctx.database.get('newDatav2', {
+                isNew: true,
             })
-            let newDatav2 = newDatas[0]
-            const url = `https://www.nexon.com/maplestory/news/${newDatav2.category}/${newDatav2.id}`
+            const latest = newDatas[0]
+            if (!latest) {
+                logger.info('未找到标记为最新的公告数据')
+                return
+            }
+            const url = `https://www.nexon.com/maplestory/news/${latest.category}/${latest.id}`
 
-            let msg = <>
-            <img src={newDatav2.imgbase64}/><br/>
-            <text content={'官网有新消息：'} /><br/>
-            <text content={`标题：${newDatav2.name}`} /><br/>
-            <text content={`原文：${newDatav2.summary}`} /><br/>
-            <a href={url} >链接：</a><br/>
-            {newDatav2.isOverHight ? <text content={`提示：由于内容较多，截图只显示部分页面数据`} /> : null}
+            const msg = <>
+                <img src={latest.imgbase64}/><br/>
+                <text content={'官网有新消息！'} /><br/>
+                <text content={`标题：${latest.name}`} /><br/>
+                <text content={`正文：${latest.summary}`} /><br/>
+                <a href={url} >点击查看原文</a><br/>
+                {latest.isOverHight ? <text content={'提示：内容较多，仅展示部分截图'} /> : null}
             </>
             await ctx.broadcast([...config.goroupLastNew], msg)
-            // ctx.bots.forEach((e: Bot) => {
-            //     e.sendMessage("724117869", h.image(msg))
-            //     e.sendMessage("320449295", h.image(msg))
-            //     e.sendMessage("894568698", h.image(msg))
-
-            // })
-
-        }else {
-            logger.info('没有新公告')
+        } else {
+            logger.info('没有检测到新的官网公告')
         }
-
 
         return
 
     })
-
-
     ctx.command('ms/公告', '获取官方最新公告')
     .alias('官网', 'new')
     .option('event', '-e 活动公告')
