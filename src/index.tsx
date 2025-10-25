@@ -20,6 +20,7 @@ export interface Config {
   groupMvp: string[],
   groupMvp2: string[],
   goroupLastNew: string[],
+  latestNewsIntervalMinutes: number,
   delAuthority: number,
   groupDailyNews: string[],
   min_default: number,
@@ -38,6 +39,9 @@ export const Config: Schema<Config> = Schema.intersect([
       groupSendMsg: Schema.array(String).description('通过api发送消息配置'),
 
   }).description('群配置'),
+  Schema.object({
+    latestNewsIntervalMinutes: Schema.number().min(0).default(0).description('获取官网公告的定时任务间隔（分钟，0 表示关闭）'),
+  }).description('公告任务配置'),
   Schema.object({
     delAuthority: Schema.number().max(5).min(0).default(2).description('可以删除全部问题的权限配置'),
 

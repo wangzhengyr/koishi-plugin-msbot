@@ -1,28 +1,29 @@
-# Repository Guidelines
+# AGENTS.md
 
-## Project Structure & Module Organization
-The Koishi plugin source lives in `src/`, with `index.tsx` providing the entry export, `core.tsx` hosting most runtime logic, and `model.ts` defining shared data helpers. Transpiled artifacts are checked into `lib/`; update them only via TypeScript builds. Compilation settings reside in `tsconfig.json`, while `.editorconfig` enforces shared formatting. Keep scratch data, screenshots, and experimental assets out of version control unless the release workflow demands them.
+## 🧩 项目简介
+本项目是一个基于 **Koishi** 的插件，可以查询maplesstory相关的信息，如官方公告等，有学习问答功能。
 
-## Build, Test, and Development Commands
-Install dependencies once per clone:
-```bash
-npm install
-```
-Build TypeScript before publishing or committing changes that affect runtime logic:
-```bash
-npx tsc --project tsconfig.json
-```
-For manual verification inside a Koishi app, link or copy the plugin and reload the bot:
-```bash
-koishi deploy --plugin ./external/msbot
-```
-Document any additional scripts you introduce in `package.json` so future contributors can rely on them.
+---
 
-## Coding Style & Naming Conventions
-Use spaces with a two-character indent, LF line endings, and UTF-8 encoding as enforced by `.editorconfig`. Prefer double-quoted imports and keep Koishi `Schema` definitions readable by aligning nested objects and providing concise descriptions. Name exported handlers and schemas in PascalCase, internal utilities in camelCase, and constants in SCREAMING_SNAKE_CASE only when immutable. Add brief comments solely for non-obvious data flows or Koishi-specific workarounds.
 
-## Testing Guidelines
-Automated tests are not yet present; exercise new features by running the plugin inside a staging Koishi instance and verifying group messaging flows (MVP rotations, daily news, API pushes). When adding tests, mirror file names (for example, `core.spec.ts`) and place them alongside the modules they cover. Aim for coverage on schema validation and message formatting to prevent regressions in production bots.
+## 🧠 Codex 行为规范
 
-## Commit & Pull Request Guidelines
-Recent history favors short, Chinese-language summaries that begin with the phonetic pattern `xiugai ...` ("modify ..."). Continue with brief, action-focused subjects that highlight the primary change. For pull requests, include: a problem statement, a concise overview of the solution, manual test evidence (logs or screenshots), and links to related Koishi issues or discussions. Request review before merging and ensure the TypeScript build output in `lib/` is in sync with the `src/` sources.
+### 语言与风格
+- 所有推理、解释、注释、建议均使用**中文**；
+- 技术术语可在括号中附英文原文（如 *endpoint*, *rate limit*）；
+- 输出逻辑清晰、简洁，不使用英文句式。
+
+### 推理与输出规范
+1. **先给出结论，再解释原因**；
+2. 对报错或异常：
+  - 说明错误含义；
+  - 按可能性排序列出原因；
+  - 提供解决方案；
+  - 若为 Koishi 或 Nexon 特有机制，请简要说明；
+3. 输出代码时：
+  - 使用 TypeScript；
+  - 注释为中文；
+
+---
+
+
