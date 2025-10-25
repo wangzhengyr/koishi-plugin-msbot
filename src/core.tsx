@@ -6,8 +6,8 @@ import {} from 'koishi-plugin-adapter-onebot'
 import {} from 'koishi-plugin-puppeteer'
 import { newDatav2, characterData, gmsInfo, delFileByAnswer } from './model'
 import { Page } from 'puppeteer-core'
-import { resolve, dirname } from 'path'
 import fs from 'fs';
+import { basename, resolve } from 'path'
 
 
 
@@ -31,6 +31,40 @@ const logger = new Logger("core");
 
 
 export default function apply(ctx: Context, config: Config) {
+
+    const newsDir = resolve(process.cwd(), 'data', 'locales', 'news')
+
+    const ensureNewsDir = async () => {
+        await fs.promises.mkdir(newsDir, { recursive: true })
+    }
+
+    const buildNewsFilepath = (filename: string) => resolve(newsDir, filename)
+
+    const buildNewsPublicUrl = (filename: string) => {
+        const base = config.newsPublicBaseUrl?.trim()
+        if (base) {
+            return `${base.replace(/\/$/, '')}/${filename}`
+        }
+        return `file://${buildNewsFilepath(filename)}`
+    }
+
+    const normalizeNewsImageUrl = async (id: number, current?: string) => {
+        if (!current || !current.startsWith('file://')) {
+            return current
+        }
+        const filePath = current.slice('file://'.length)
+        const filename = basename(filePath)
+        const publicUrl = buildNewsPublicUrl(filename)
+        if (publicUrl !== current) {
+            await ctx.database.set('newDatav2', {
+                id,
+            }, {
+                imgbase64: publicUrl,
+            })
+            return publicUrl
+        }
+        return current
+    }
 
 
 
@@ -445,21 +479,23 @@ export default function apply(ctx: Context, config: Config) {
                     const imageBuffer = await content.screenshot({ type: "png" })
                     logger.info(imageBuffer.byteLength)
 
+                    await ensureNewsDir()
                     const filename = `${uuidv4()}.png`
-                    const filepath = resolve(process.cwd(), 'data', 'locales', 'news', filename)
-                    await fs.promises.mkdir(dirname(filepath), { recursive: true })
+                    const filepath = buildNewsFilepath(filename)
                     await fs.promises.writeFile(filepath, imageBuffer)
+                    const publicUrl = buildNewsPublicUrl(filename)
                     logger.info('保存完成：' + filepath)
+                    logger.info('公网访问地址：' + publicUrl)
 
                     await ctx.database.set('newDatav2', {
                         id: newData.id,
                     }, {
-                        imgbase64: `file://${filepath}`,
+                        imgbase64: publicUrl,
                         isOverHight: data.isOverHight,
                     })
 
                     const msg = <>
-                        <img src={`file://${filepath}`} /><br/>
+                        <img src={publicUrl} /><br/>
                         <text content={'官网有新消息！'} /><br/>
                         <text content={`标题：${newData.name}`} /><br/>
                         <text content={`正文：${newData.summary}`} /><br/>
@@ -491,9 +527,10 @@ export default function apply(ctx: Context, config: Config) {
                     return
                 }
                 const url = `https://www.nexon.com/maplestory/news/${latest.category}/${latest.id}`
+                const imageSource = await normalizeNewsImageUrl(latest.id, latest.imgbase64) ?? latest.imgbase64
 
                 const msg = <>
-                    <img src={latest.imgbase64}/><br/>
+                    <img src={imageSource}/><br/>
                     <text content={'官网有新消息！'} /><br/>
                     <text content={`标题：${latest.name}`} /><br/>
                     <text content={`正文：${latest.summary}`} /><br/>
@@ -634,22 +671,14 @@ export default function apply(ctx: Context, config: Config) {
               logger.info("页面高度：" + data.hight)
               const imageBuffer = await content.screenshot({})
               logger.info(imageBuffer.byteLength)
-              //将图像缓冲区转换为 Base64 编码的字符串
-              // const base64Image = imageBuffer.toString('base64')
-              //
-              // // 创建数据 URI
-              // const dataURI = `data:image/png;base64,${base64Image}`
-
+              await ensureNewsDir()
               const filename = `${uuidv4()}.png`;
-              const filepath = resolve(process.cwd(), 'data', 'locales', 'news', filename);
-              const dir = dirname(filepath);
-              if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-              }
-
-              await fs.promises.writeFile(filepath, Buffer.from(imageBuffer))
+              const filepath = buildNewsFilepath(filename);
+              await fs.promises.writeFile(filepath, imageBuffer)
               logger.info('保存完成：' + filepath)
-              newDatav2.imgbase64 = "file://" + filepath
+              const publicUrl = buildNewsPublicUrl(filename)
+              logger.info('公网访问地址：' + publicUrl)
+              newDatav2.imgbase64 = publicUrl
               newDatav2.isOverHight = data.isOverHight
 
               await ctx.database.create('newDatav2', newDatav2)
@@ -664,6 +693,7 @@ export default function apply(ctx: Context, config: Config) {
         }else {
             newDatav2 = newDatas[0]
         }
+        newDatav2.imgbase64 = await normalizeNewsImageUrl(newDatav2.id, newDatav2.imgbase64) ?? newDatav2.imgbase64
         type = newDatav2.category
         const url = `https://www.nexon.com/maplestory/news/${newDatav2.category}/${newDatav2.id}`
 
