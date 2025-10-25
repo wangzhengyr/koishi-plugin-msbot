@@ -649,7 +649,7 @@ export default function apply(ctx: Context, config: Config) {
 
     })
 
-    ctx.command('ms/联盟绑定 <name:string>', '角色名称与当前账号绑定')
+ /*   ctx.command('ms/联盟绑定 <name:string>', '角色名称与当前账号绑定')
     .example('联盟绑定 leslee520')
     .action(async ({session}, name) => {
         if(!name) {
@@ -669,9 +669,9 @@ export default function apply(ctx: Context, config: Config) {
 
     })
 
+*/
 
-
-    ctx.command('ms/联盟查询 <name:string>', '查询角色信息')
+   /* ctx.command('ms/联盟查询 <name:string>', '查询角色信息')
     .example('联盟查询 leslee520')
     .action(async ({session}, name) => {
         if(!name) {
@@ -753,7 +753,7 @@ export default function apply(ctx: Context, config: Config) {
 
 
 
-    })
+    })*/
 
     ctx.command('ms/查询延迟')
     .action(async ({session}) => {
