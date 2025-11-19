@@ -731,7 +731,7 @@ export default function apply(ctx: Context, config: Config) {
 
 */
 
-   /* ctx.command('ms/联盟查询 <name:string>', '查询角色信息')
+    ctx.command('ms/联盟查询 <name:string>', '查询角色信息')
     .example('联盟查询 leslee520')
     .action(async ({session}, name) => {
         if(!name) {
@@ -813,7 +813,7 @@ export default function apply(ctx: Context, config: Config) {
 
 
 
-    })*/
+    })
 
     ctx.command('ms/查询延迟')
     .action(async ({session}) => {
@@ -1048,151 +1048,173 @@ export default function apply(ctx: Context, config: Config) {
 
 
 async function getCharacterData(name:string, page: Page, session: Session): Promise<characterData>{
-
-
-
-        // 获取数据
-        // let page = await browser.newPage()
-        let url = `https://mapleranks.com/u/${name}`
-        try {
-            await page.goto(url, {
-                waitUntil: 'networkidle0',
-                timeout: 30000,
-            })
-        } catch (error) {
-            page.close()
-            logger.debug(error)
-            session.send('联盟查询-打开主页异常')
+        const trimmedName = name.trim()
+        if (!trimmedName) {
             return null
         }
-        let characterData: characterData = await page.evaluate(() => {
-            if(document.querySelector('h2')?.innerText == 'Not Found') {
-                return null
-            }
 
+        const lowerName = trimmedName.toLowerCase()
+        const candidates: Array<{ isEu: boolean }> = [
+            { isEu: false },
+            { isEu: true },
+        ]
+        let lastError: any
 
-
-            let chartData
-            let chart
-            let labels
-            if (eval("typeof Chart !== 'undefined'")) {
-                const charts = eval('Chart.instances');
-
-                for (const key in charts) {
-                    if (charts.hasOwnProperty(key)) {
-                        const chart = charts[key];
-                        if (chart.config.type === 'bar') {
-                            chartData = chart
-                            // 这里可以对找到的图表实例进行进一步操作
-                        }
-                    }
+        for (const candidate of candidates) {
+            try {
+                const payload = await fetchCharacterPayload(page, trimmedName, candidate.isEu)
+                const rawData = decodeCharacterPayload(payload, lowerName)
+                const data = transformCharacterData(rawData, trimmedName)
+                if (data) {
+                    return data
                 }
-                if(chartData) {
-                    chart = chartData.data.datasets[0].data.slice(-14)
-                    labels = chartData.data.labels.slice(-14)
-                }
-              }
-
-
-
-
-            const avatar = document.querySelector('img')?.src
-
-            const name = document.querySelector('h3')?.innerText
-            const lv = document.querySelector('h5')?.innerText
-            let job = document.querySelector('p')?.innerText?.split('in ')[0]?.trim()
-            let server = document.querySelector('p')?.innerText?.split('in ')[1]?.trim()
-            const rankInKOnJob = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[0]?.children[0]?.children[0] as HTMLElement)?.innerText
-            const rankInK = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[0]?.children[1]?.children[0] as HTMLElement)?.innerText
-            const rankInROnJob = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[0]?.children[2]?.children[0] as HTMLElement)?.innerText
-            const rankInR = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[0]?.children[3]?.children[0] as HTMLElement)?.innerText
-            const legion_rank = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[1]?.children[0]?.children[0] as HTMLElement)?.innerText
-            const legion_lv = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[1]?.children[1]?.children[0] as HTMLElement)?.innerText
-            let legion_power_value =  (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[1]?.children[2]?.children[0]?.childNodes[0] as HTMLInputElement)?.value
-
-            // 联盟战力需要转数字
-            let legion_power
-            if (legion_power_value) {
-                const str = legion_power_value.replace(/,/g, '');
-                // 转换为数字
-                const e = parseInt(str);
-                legion_power = 999 < e && e < 1e6
-                    ? Number((e / 1e3).toFixed(1)) + "K"
-                    : 1e6 <= e && e < 1e9
-                    ? Number((e / 1e6).toFixed(2)) + "M"
-                    : 1e9 <= e && e < 1e12
-                    ? Number((e / 1e9).toFixed(2)) + "B"
-                    : 1e12 <= e && e < 1e15
-                    ? Number((e / 1e12).toFixed(2)) + "T"
-                    : "" + e;
+            } catch (error) {
+                lastError = error
+                logger.debug(error)
             }
+        }
 
-
-
-            const legion_bi = (document.querySelector('div.d-flex.justify-content-between.my-2')?.childNodes[5]?.childNodes[0] as HTMLInputElement)?.value
-            const chengjiuzhi = (document.querySelectorAll('ul.list-group.list-group-flush.char-stat-list')[2]?.children[2]?.children[0] as HTMLElement)?.innerText
-            const avg_exp_7 = (document.querySelectorAll('div.d-inline-block.pe-3.border-end.char-exp-cell>span')[0]as HTMLElement)?.innerText
-            const avg_exp_14 = (document.querySelectorAll('div.d-inline-block.ps-2.char-exp-cell>span')[0]as HTMLElement)?.innerText
-            const total_exp_7 = (document.querySelectorAll('div.d-inline-block.pe-3.border-end.char-exp-cell>span')[2]as HTMLElement)?.innerText
-            const total_exp_14 = (document.querySelectorAll('div.d-inline-block.ps-2.char-exp-cell>span')[2] as HTMLElement)?.innerText
-
-
-            // 获取附近排名数据
-            const fujin_job_rank_name_lv = []
-            const fujin_rank_name_lv = []
-            const fujin_job_rank_names = document.querySelectorAll('div.accordion-collapse.collapse.show.rkaccord')[0]?.querySelectorAll('strong');
-            const fujin_job_rank_lvs = document.querySelectorAll('div.accordion-collapse.collapse.show.rkaccord')[0]?.querySelectorAll('span');
-
-            if (fujin_job_rank_names && fujin_job_rank_lvs && fujin_job_rank_names.length === fujin_job_rank_lvs.length) {
-                Array.from(fujin_job_rank_names).forEach((nameElement, index) => {
-                    const name = nameElement.innerText;
-                    const lv = fujin_job_rank_lvs[index].innerText;
-                    fujin_job_rank_name_lv.push({ name, lv });
-                });
-
-            }
-
-            const fujin_rank_names = document.querySelectorAll('div.accordion-collapse.collapse.show.rkaccord')[1]?.querySelectorAll('strong');
-            const fujin_rank_lvs = document.querySelectorAll('div.accordion-collapse.collapse.show.rkaccord')[1]?.querySelectorAll('span');
-
-            if (fujin_rank_names && fujin_rank_lvs && fujin_rank_names.length === fujin_rank_lvs.length) {
-                Array.from(fujin_rank_names).forEach((nameElement, index) => {
-                    const name = nameElement.innerText;
-                    const lv = fujin_rank_lvs[index].innerText;
-                    fujin_rank_name_lv.push({ name, lv });
-                });
-
-                console.log(fujin_rank_name_lv);
-            }
-
-            return {
-                chart,
-                labels,
-                avatar,
-                name,
-                lv,
-                job,
-                server,
-                rankInKOnJob,
-                rankInK,
-                rankInROnJob,
-                rankInR,
-                legion_rank,
-                legion_lv,
-                legion_power,
-                legion_bi,
-                chengjiuzhi,
-                avg_exp_7,
-                avg_exp_14,
-                total_exp_7,
-                total_exp_14,
-                fujin_job_rank_name_lv,
-                fujin_rank_name_lv
-            }
-        })
-
-        return characterData
+        if (lastError) {
+            session.send('联盟查询-数据解析异常')
+        }
+        return null
 }
+
+async function fetchCharacterPayload(page: Page, name: string, isEu: boolean): Promise<string> {
+    const encoded = encodeURIComponent(name)
+    const url = isEu ? `https://mapleranks.com/u/h/eu/${encoded}` : `https://mapleranks.com/u/h/${encoded}`
+    try {
+        await page.goto(url, {
+            waitUntil: 'networkidle0',
+            timeout: 30000,
+        })
+    } catch (error) {
+        throw new Error('fetch payload failed')
+    }
+    const content = await page.evaluate(() => {
+        const text = document.body?.innerText || document.body?.textContent || ''
+        return text.trim()
+    })
+    if (!content || content.startsWith('<!DOCTYPE')) {
+        throw new Error('invalid payload')
+    }
+    return content
+}
+
+function decodeCharacterPayload(payload: string, lowerName: string) {
+    const key = deriveKey(lowerName)
+    const json = decryptPayload(payload, key)
+    const data = JSON.parse(json)
+    if (!data?.a8a52f2a?.c0b8373f) {
+        throw new Error('empty character data')
+    }
+    return data
+}
+
+function deriveKey(value: string) {
+    const seed = typeof value === 'number' ? value : (() => {
+        let hash = 0
+        for (let i = 0; i < value.length; i++) {
+            hash = (hash << 5) - hash + value.charCodeAt(i)
+            hash &= hash
+        }
+        return Math.abs(hash)
+    })()
+    const result = new Uint8Array(16)
+    let current = seed
+    for (let i = 0; i < 16; i++) {
+        current = (1664525 * current + 1013904223) % 4294967296
+        result[i] = current & 255
+    }
+    return result
+}
+
+function decryptPayload(payload: string, key: Uint8Array) {
+    const bytes = Uint8Array.from(Buffer.from(payload, 'base64'))
+    const skip = bytes[0] ?? 0
+    const data = bytes.slice(1 + skip)
+    const output = new Uint8Array(data.length)
+    for (let i = 0; i < data.length; i++) {
+        output[i] = data[i] ^ key[i % key.length]
+    }
+    return Buffer.from(output).toString('utf8')
+}
+
+function transformCharacterData(raw: any, fallbackName: string): characterData {
+    const character = raw?.a8a52f2a ?? {}
+    const expSection = raw?.f0936776 ?? {}
+    const chartSource = expSection?.a97740e6?.data?.datasets?.[0]?.data ?? []
+    const labelSource = expSection?.a97740e6?.data?.labels ?? []
+    const ranks = raw?.a36a90a3?.a9b9dce3 ?? {}
+    const legionSummary = raw?.a7c8a2d6?.f2227f51 ?? {}
+
+    const chart = Array.isArray(chartSource) ? chartSource.slice(-14).map(e => Number(e) || 0) : []
+    const labels = Array.isArray(labelSource) ? labelSource.slice(-14) : []
+
+    const levelPercent = typeof character.f0936776 === 'number'
+        ? `${character.f0936776.toFixed(2)}%`
+        : (typeof expSection.ad671ae0 === 'number' ? `${expSection.ad671ae0.toFixed(2)}%` : (expSection.ad671ae0 ?? ''))
+    const lv = character.ce118b77 ? `Lv.${character.ce118b77}${levelPercent ? ` (${levelPercent})` : ''}` : '--'
+    const job = buildJobText(character.f08d9934, character.de2fb364)
+    const server = character.a7314cac && character.de2fb364
+        ? `${character.a7314cac} / ${character.de2fb364}`
+        : (character.a7314cac ?? character.de2fb364 ?? '')
+
+    const result: characterData = {
+        chart,
+        labels,
+        avatar: character.a2cc87dd ?? '',
+        name: character.c0b8373f ?? fallbackName,
+        lv,
+        job,
+        server,
+        rankInKOnJob: ranks.b1314ca2 ?? character.a14ed327 ?? '--',
+        rankInK: ranks.a14ed327 ?? character.a14ed327 ?? '--',
+        rankInROnJob: ranks.aa945b04 ?? '--',
+        rankInR: ranks.a2825559 ?? '--',
+        legion_rank: legionSummary.af0e25ad ?? character.aea2c7ab ?? '--',
+        legion_lv: character.aa31ce57 ?? '--',
+        legion_power: character.aaf0400a ?? '--',
+        legion_bi: character.a5cec809 ? `${character.a5cec809}` : '',
+        chengjiuzhi: buildAchievementText(character.a9381a11, character.a1167545),
+        avg_exp_7: expSection.a1758910 ?? '--',
+        avg_exp_14: expSection.a042be2d ?? '--',
+        total_exp_7: expSection.a6f3c294 ?? '--',
+        total_exp_14: expSection.f28af990 ?? '--',
+        fujin_job_rank_name_lv: mapNearbyRanks(raw?.a36a90a3?.b6d99b0f),
+        fujin_rank_name_lv: mapNearbyRanks(raw?.a36a90a3?.a95f8e78),
+    }
+
+    return result
+}
+
+function buildJobText(job?: string, world?: string) {
+    if (job && world) return `${job} in ${world}`
+    if (job) return job
+    if (world) return world
+    return ''
+}
+
+function buildAchievementText(score?: string, tier?: string) {
+    if (!score && !tier) return ''
+    if (score && tier) return `${score} (${tier})`
+    return score ?? tier ?? ''
+}
+
+function mapNearbyRanks(list?: any[]): { name: string, lv: string }[] {
+    if (!Array.isArray(list)) return []
+    return list.map(entry => {
+        const rank = entry?.b3f28f29 ?? ''
+        const charName = entry?.f0905e38 ?? ''
+        const level = entry?.a5a5ee3f ? `Lv.${entry.a5a5ee3f}` : ''
+        const percent = entry?.f0936776 ? ` (${entry.f0936776})` : ''
+        return {
+            name: `${rank ? `${rank}. ` : ''}${charName}`,
+            lv: `${level}${percent}`
+        }
+    })
+}
+
 
 
 
