@@ -721,7 +721,7 @@ export default function apply(ctx: Context, config: Config) {
             name = cname
         }
 
-        let msg = await bindGms(ctx, name, session.userId)
+        let msg = await bindGms(ctx, name, session.userId, config)
 
         return msg
 
@@ -745,7 +745,7 @@ export default function apply(ctx: Context, config: Config) {
                     <at id={session.userId} /> 输入超时。
                 </>
                 name = cname
-               return bindGms(ctx, name, session.userId)
+               return bindGms(ctx, name, session.userId, config)
             }
             name = info[0].name
         }
@@ -764,19 +764,21 @@ export default function apply(ctx: Context, config: Config) {
             logger.info(userId)
         }
 
-        // const url = `https://api.maplestory.gg/v2/public/character/gms/${name}`
-        const url = `https://mapleranks.com/u/${name}`
-        try {
-            await ctx.http.get(url)
-        } catch (error) {
+        // 先用 HTTP 检查是否被 CF 拦截或 404，再进入 puppeteer 渲染
+        const preflight = await preflightMapleranks(ctx, config, `/u/${encodeURIComponent(name)}`)
+        if (preflight === 'blocked') {
+            return 'Cloudflare 拦截，请在配置填写 cf_clearance 或配置反代域名'
+        }
+        if (preflight === 'notFound') {
             return '角色不存在'
         }
+        // 其他异常走 puppeteer 再试一次
 
         const page = await ctx.puppeteer.page()
         // const browser = ctx.puppeteer.browser
 
         try {
-            let characterData = await getCharacterData(name, page, session)
+            let characterData = await getCharacterData(name, page, session, config)
             let xishu = config.xishu
             if(config.names.includes(name.toLowerCase())) {
 
@@ -1047,7 +1049,7 @@ export default function apply(ctx: Context, config: Config) {
 
 
 
-async function getCharacterData(name:string, page: Page, session: Session): Promise<characterData>{
+async function getCharacterData(name:string, page: Page, session: Session, config: Config): Promise<characterData>{
         const trimmedName = name.trim()
         if (!trimmedName) {
             return null
@@ -1062,7 +1064,7 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
 
         for (const candidate of candidates) {
             try {
-                const payload = await fetchCharacterPayload(page, trimmedName, candidate.isEu)
+                const payload = await fetchCharacterPayload(page, trimmedName, candidate.isEu, config)
                 const rawData = decodeCharacterPayload(payload, lowerName)
                 const data = transformCharacterData(rawData, trimmedName)
                 if (data) {
@@ -1075,19 +1077,29 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
         }
 
         if (lastError) {
-            session.send('联盟查询-数据解析异常')
+            if (lastError?.message === 'cloudflare challenge') {
+                session.send('MapleRanks 启用了 Cloudflare，需在配置中填入 cf_clearance 或配置反代域名')
+            } else {
+                session.send('联盟查询-数据解析异常')
+            }
         }
         return null
 }
 
-async function fetchCharacterPayload(page: Page, name: string, isEu: boolean): Promise<string> {
+async function fetchCharacterPayload(page: Page, name: string, isEu: boolean, config: Config): Promise<string> {
     const encoded = encodeURIComponent(name)
-    const url = isEu ? `https://mapleranks.com/u/h/eu/${encoded}` : `https://mapleranks.com/u/h/${encoded}`
+    const path = isEu ? `/u/h/eu/${encoded}` : `/u/h/${encoded}`
+    const url = buildMapleranksUrl(config, path)
+
+    await prepareMapleranksPage(page, config)
+
     try {
         await page.goto(url, {
-            waitUntil: 'networkidle0',
-            timeout: 30000,
+            waitUntil: 'domcontentloaded',
+            timeout: 45000,
         })
+        // 等待 Cloudflare 自动挑战脚本结束
+        await sleep(1200)
     } catch (error) {
         throw new Error('fetch payload failed')
     }
@@ -1095,10 +1107,113 @@ async function fetchCharacterPayload(page: Page, name: string, isEu: boolean): P
         const text = document.body?.innerText || document.body?.textContent || ''
         return text.trim()
     })
+    if (isCloudflareBlocked(content)) {
+        throw new Error('cloudflare challenge')
+    }
     if (!content || content.startsWith('<!DOCTYPE')) {
         throw new Error('invalid payload')
     }
     return content
+}
+
+const MAPLERANKS_DEFAULT_BASE = 'https://mapleranks.com'
+const MAPLERANKS_DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+
+function buildMapleranksBase(config: Config) {
+    const base = config.mapleranksBaseUrl?.trim() || MAPLERANKS_DEFAULT_BASE
+    return base.replace(/\/$/, '')
+}
+
+function buildMapleranksUrl(config: Config, path: string) {
+    const base = buildMapleranksBase(config)
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`
+    return `${base}${normalizedPath}`
+}
+
+function buildMapleranksHeaders(config: Config) {
+    const headers: Record<string, string> = {}
+    headers['user-agent'] = config.mapleranksUserAgent?.trim() || MAPLERANKS_DEFAULT_UA
+    headers['accept-language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
+    const cookie = config.mapleranksCookie?.trim()
+    if (cookie) {
+        headers['cookie'] = cookie
+    }
+    return headers
+}
+
+function getMapleranksHost(config: Config) {
+    try {
+        return new URL(buildMapleranksBase(config)).hostname
+    } catch (error) {
+        return 'mapleranks.com'
+    }
+}
+
+function parseCookieHeader(cookieHeader: string, domain: string) {
+    return cookieHeader.split(';').map((pair) => {
+        const trimmed = pair.trim()
+        if (!trimmed) return null
+        const idx = trimmed.indexOf('=')
+        if (idx <= 0) return null
+        const name = trimmed.slice(0, idx)
+        const value = trimmed.slice(idx + 1)
+        return { name, value, domain, path: '/' }
+    }).filter(Boolean) as Array<{ name: string, value: string, domain: string, path?: string }>
+}
+
+async function prepareMapleranksPage(page: Page, config: Config) {
+    const ua = config.mapleranksUserAgent?.trim() || MAPLERANKS_DEFAULT_UA
+    await page.setUserAgent(ua)
+    const headers = buildMapleranksHeaders(config)
+    // page 的 UA 已单独设置，这里只保留其他头
+    delete headers['user-agent']
+    await page.setExtraHTTPHeaders(headers)
+
+    const cookieHeader = config.mapleranksCookie?.trim()
+    if (cookieHeader) {
+        const domain = getMapleranksHost(config)
+        const cookies = parseCookieHeader(cookieHeader, domain)
+        if (cookies.length > 0) {
+            await page.setCookie(...cookies)
+        }
+    }
+}
+
+function isCloudflareBlocked(content: string) {
+    const lower = content?.toLowerCase?.() || ''
+    if (!lower) return false
+    return lower.includes('cloudflare') && (lower.includes('ray id') || lower.includes('checking your browser') || lower.includes('security'))
+        || content.includes('请完成以下操作')
+        || content.includes('检查您的连接的安全性')
+}
+
+function sleep(ms: number) {
+    return new Promise<void>((resolve) => setTimeout(resolve, ms))
+}
+
+type MapleranksPreflightResult = 'ok' | 'blocked' | 'notFound' | 'error'
+
+async function preflightMapleranks(ctx: Context, config: Config, path: string): Promise<MapleranksPreflightResult> {
+    const url = buildMapleranksUrl(config, path)
+    const headers = buildMapleranksHeaders(config)
+    try {
+        const res = await ctx.http.get(url, { headers, responseType: 'text' })
+        if (typeof res === 'string' && isCloudflareBlocked(res)) {
+            return 'blocked'
+        }
+        return 'ok'
+    } catch (error) {
+        const status = (error as any)?.response?.status
+        const body = (error as any)?.response?.data
+        if (typeof body === 'string' && isCloudflareBlocked(body)) {
+            return 'blocked'
+        }
+        if (status === 404) {
+            return 'notFound'
+        }
+        logger.warn(error)
+        return 'error'
+    }
 }
 
 function decodeCharacterPayload(payload: string, lowerName: string) {
@@ -1869,17 +1984,19 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
 
 }
 
-async function bindGms(ctx: Context, name: string, userId: string) {
+async function bindGms(ctx: Context, name: string, userId: string, config: Config) {
 
 
     // const url = `https://api.maplestory.gg/v2/public/character/gms/${name}`
-    const url = `https://mapleranks.com/u/${name}`
-
-
-    try {
-        await ctx.http.get(url)
-    } catch (error) {
+    const preflight = await preflightMapleranks(ctx, config, `/u/${encodeURIComponent(name)}`)
+    if (preflight === 'blocked') {
+        return 'Cloudflare 拦截，请在配置填写 cf_clearance 或配置反代域名'
+    }
+    if (preflight === 'notFound') {
         return '角色不存在'
+    }
+    if (preflight === 'error') {
+        return '绑定失败，网络异常或 Cloudflare 拦截'
     }
 
     try {
