@@ -32,6 +32,7 @@ export interface Config {
   mapleranksBaseUrl?: string,
   mapleranksCookie?: string,
   mapleranksUserAgent?: string,
+  mapleranksChallengeWaitMs?: number,
 }
 
 export const Config: Schema<Config> = Schema.intersect([
@@ -63,6 +64,7 @@ export const Config: Schema<Config> = Schema.intersect([
     mapleranksBaseUrl: Schema.string().default('https://mapleranks.com').description('MapleRanks 基础地址或反代，例如 https://your-proxy.example.com'),
     mapleranksCookie: Schema.string().default('').description('MapleRanks Cookie（建议包含 cf_clearance，直接从浏览器复制整段）'),
     mapleranksUserAgent: Schema.string().default('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36').description('访问 MapleRanks 使用的 UA'),
+    mapleranksChallengeWaitMs: Schema.number().default(1500).description('访问后等待 Cloudflare 挑战完成的毫秒数'),
   }).description('MapleRanks 访问配置'),
 ])
 

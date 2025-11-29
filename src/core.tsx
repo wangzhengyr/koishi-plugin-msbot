@@ -1099,7 +1099,7 @@ async function fetchCharacterPayload(page: Page, name: string, isEu: boolean, co
             timeout: 45000,
         })
         // 等待 Cloudflare 自动挑战脚本结束
-        await sleep(1200)
+        await sleep(getMapleranksWait(config))
     } catch (error) {
         throw new Error('fetch payload failed')
     }
@@ -1118,6 +1118,7 @@ async function fetchCharacterPayload(page: Page, name: string, isEu: boolean, co
 
 const MAPLERANKS_DEFAULT_BASE = 'https://mapleranks.com'
 const MAPLERANKS_DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+const MAPLERANKS_DEFAULT_WAIT = 1500
 
 function buildMapleranksBase(config: Config) {
     const base = config.mapleranksBaseUrl?.trim() || MAPLERANKS_DEFAULT_BASE
@@ -1189,6 +1190,12 @@ function isCloudflareBlocked(content: string) {
 
 function sleep(ms: number) {
     return new Promise<void>((resolve) => setTimeout(resolve, ms))
+}
+
+function getMapleranksWait(config: Config) {
+    const value = Number(config.mapleranksChallengeWaitMs ?? MAPLERANKS_DEFAULT_WAIT)
+    if (Number.isFinite(value) && value >= 0) return value
+    return MAPLERANKS_DEFAULT_WAIT
 }
 
 type MapleranksPreflightResult = 'ok' | 'blocked' | 'notFound' | 'error'
