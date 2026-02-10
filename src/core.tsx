@@ -764,19 +764,13 @@ export default function apply(ctx: Context, config: Config) {
             logger.info(userId)
         }
 
-        // const url = `https://api.maplestory.gg/v2/public/character/gms/${name}`
-        const url = `https://mapleranks.com/u/${name}`
-        try {
-            await ctx.http.get(url)
-        } catch (error) {
-            return '角色不存在'
-        }
-
         const page = await ctx.puppeteer.page()
         // const browser = ctx.puppeteer.browser
 
         try {
             let characterData = await getCharacterData(name, page, session)
+            if(characterData == null) return '角色不存在'
+
             let xishu = config.xishu
             if(config.names.includes(name.toLowerCase())) {
 
@@ -796,8 +790,6 @@ export default function apply(ctx: Context, config: Config) {
                 characterData.chart = characterData.chart.map(e => e * xishu)
 
             }
-
-            if(characterData == null) return '角色不存在'
 
             let imageBuffer = await generateCharacterImage(page, characterData, config)
 
@@ -1047,7 +1039,7 @@ export default function apply(ctx: Context, config: Config) {
 
 
 
-async function getCharacterData(name:string, page: Page, session: Session): Promise<characterData>{
+async function getCharacterData(name:string, page: Page, session?: Session): Promise<characterData>{
         const trimmedName = name.trim()
         if (!trimmedName) {
             return null
@@ -1075,7 +1067,7 @@ async function getCharacterData(name:string, page: Page, session: Session): Prom
         }
 
         if (lastError) {
-            session.send('联盟查询-数据解析异常')
+            await session?.send('联盟查询-数据解析异常')
         }
         return null
 }
@@ -1870,16 +1862,22 @@ async function generateCharacterImage(page: Page, characterData: characterData, 
 }
 
 async function bindGms(ctx: Context, name: string, userId: string) {
-
-
-    // const url = `https://api.maplestory.gg/v2/public/character/gms/${name}`
-    const url = `https://mapleranks.com/u/${name}`
-
-
-    try {
-        await ctx.http.get(url)
-    } catch (error) {
+    const trimmedName = name.trim()
+    if (!trimmedName) {
         return '角色不存在'
+    }
+
+    const page = await ctx.puppeteer.page()
+    try {
+        const data = await getCharacterData(trimmedName, page)
+        if (!data) {
+            return '角色不存在'
+        }
+    } catch (error) {
+        logger.debug(error)
+        return '角色不存在'
+    } finally {
+        await page.close()
     }
 
     try {
@@ -1890,12 +1888,12 @@ async function bindGms(ctx: Context, name: string, userId: string) {
             await ctx.database.set('gmsInfo', {
                 userId
             }, {
-                name
+                name: trimmedName
             })
         }else {
             await ctx.database.create('gmsInfo', {
                 userId,
-                name
+                name: trimmedName
             })
         }
     } catch (error) {
