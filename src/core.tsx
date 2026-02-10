@@ -768,7 +768,7 @@ export default function apply(ctx: Context, config: Config) {
         // const browser = ctx.puppeteer.browser
 
         try {
-            let characterData = await getCharacterData(name, page, session)
+            let characterData = await getCharacterData(name, page)
             if(characterData == null) return '角色不存在'
 
             let xishu = config.xishu
@@ -1039,7 +1039,7 @@ export default function apply(ctx: Context, config: Config) {
 
 
 
-async function getCharacterData(name:string, page: Page, session?: Session): Promise<characterData>{
+async function getCharacterData(name:string, page: Page): Promise<characterData>{
         const trimmedName = name.trim()
         if (!trimmedName) {
             return null
@@ -1061,13 +1061,16 @@ async function getCharacterData(name:string, page: Page, session?: Session): Pro
                     return data
                 }
             } catch (error) {
+                if (isCharacterNotFoundError(error)) {
+                    continue
+                }
                 lastError = error
                 logger.debug(error)
             }
         }
 
         if (lastError) {
-            await session?.send('联盟查询-数据解析异常')
+            logger.debug('联盟查询-数据解析异常')
         }
         return null
 }
@@ -1098,9 +1101,44 @@ function decodeCharacterPayload(payload: string, lowerName: string) {
     const json = decryptPayload(payload, key)
     const data = JSON.parse(json)
     if (!data?.a8a52f2a?.c0b8373f) {
-        throw new Error('empty character data')
+        throw new Error('character not found')
     }
     return data
+}
+
+function isCharacterNotFoundError(error: unknown) {
+    if (!(error instanceof Error)) {
+        return false
+    }
+    return error.message === 'character not found' || error.message === 'empty character data'
+}
+
+async function checkCharacterExists(name: string, page: Page): Promise<boolean> {
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+        return false
+    }
+
+    const lowerName = trimmedName.toLowerCase()
+    const candidates: Array<{ isEu: boolean }> = [
+        { isEu: false },
+        { isEu: true },
+    ]
+
+    for (const candidate of candidates) {
+        try {
+            const payload = await fetchCharacterPayload(page, trimmedName, candidate.isEu)
+            decodeCharacterPayload(payload, lowerName)
+            return true
+        } catch (error) {
+            if (isCharacterNotFoundError(error)) {
+                continue
+            }
+            logger.debug(error)
+        }
+    }
+
+    return false
 }
 
 function deriveKey(value: string) {
@@ -1869,8 +1907,8 @@ async function bindGms(ctx: Context, name: string, userId: string) {
 
     const page = await ctx.puppeteer.page()
     try {
-        const data = await getCharacterData(trimmedName, page)
-        if (!data) {
+        const exists = await checkCharacterExists(trimmedName, page)
+        if (!exists) {
             return '角色不存在'
         }
     } catch (error) {
